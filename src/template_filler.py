@@ -33,7 +33,8 @@ if api_key:
         }
         model = genai.GenerativeModel(
             # model_name="gemini-1.5-pro",
-            model_name="gemini-1.5-flash",          
+            # model_name="gemini-1.5-flash",
+            model_name="gemini-2.0-flash-exp",
             generation_config=generation_config,
         )
         logging.info("Gemini API configured successfully.")
