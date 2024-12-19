@@ -98,6 +98,11 @@ For scenarios where you want to automatically re-generate documentation whenever
       ```bash
        chmod +x sample.rdg.sh
       ```
+    Note that this also works with any other command. For instance, if you wish to just copy the files inside the directory `samples` to a folder called `samples-copy` whenever you modify something in the `samples` directory, then you can create a command as:
+    ```bash
+     cp -r samples samples-copy
+    ```
+    This is just an example, and any other command can be used.
 2.  **Run the Script Watcher:** To use the script watcher, run:
     ```bash
     python src/script-watcher.py . ./sample.rdg.sh
@@ -141,7 +146,7 @@ Here's how you might use `reactive-docgen` in a real scenario:
 
 *   **`ModuleNotFoundError: No module named 'dotenv'`:** Make sure that you have installed the required libraries: `pip install google-generativeai python-dotenv`.
 *   **`GEMINI_API_KEY` not set:** Make sure to create the `.env` file and set the `GEMINI_API_KEY` variable.
-*   **`RdfParserError: Template must be supplied when using the GEMINIPROMPT`**: Make sure that the template argument is included when calling the `GEMINIPROMPT` formula. Example: `GEMINIPROMPT(template="your template here", input="input.md")`
+*   **`RdgParserError: Template must be supplied when using the GEMINIPROMPT`**: Make sure that the template argument is included when calling the `GEMINIPROMPT` formula. Example: `GEMINIPROMPT(template="your template here", input="input.md")`
 *   **Other issues:** Make sure the input files exist at the correct locations, and that you have internet connectivity if using the `GEMINIPROMPT` formula. Check the console for any errors or warning messages.
 
 ### Permissions Issue for Scripts
