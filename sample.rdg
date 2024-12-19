@@ -1,0 +1,4 @@
+samples/output.md=UPPERCASE(file="input.md")
+samples/output2.md=GEMINIPROMPT(template="Summarize the following: $input", input="samples/input.md")
+samples/output3.md=GEMINIPROMPT(template="Translate to italian: $input", input="samples/input.md")
+samples/output5.md=GEMINIPROMPT(template="Translate to german: $input", input="samples/input.md")
