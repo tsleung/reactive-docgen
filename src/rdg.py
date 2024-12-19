@@ -123,6 +123,24 @@ def uppercase(rdg_file:str, **kwargs) -> str:
     return content.upper()
   except FileNotFoundError:
     raise RdfParserError(f"File not found: {file}")
+  
+def create_file(rdg_file:str, **kwargs) -> str:
+    """
+    Creates a file with a given string.
+    
+    Args:
+      rdg_file (str): Path to the rdg file
+      content (str): content of the file to be created
+    """
+   
+    
+    if "content" not in kwargs:
+       raise RdfParserError("The parameter 'content' is required in CREATEFILE")
+    
+    
+    file_content = kwargs["content"]
+    
+    return file_content
 
 def gemini_prompt(rdg_file:str, use_filesystem_cache=True, **kwargs) -> str:
     """Sends the file content to an LLM and returns the response using caching."""
@@ -204,6 +222,7 @@ FUNCTION_REGISTRY: Dict[str, Callable] = {
     "UPPERCASE": uppercase,
     "GEMINIPROMPT": gemini_prompt,
     "DIRECTORYTOMARKDOWN": create_markdown_from_directory,
+    "CREATEFILE": create_file,
 }
 
 def parse_rdg_line(line: str, file_dir: str = ".") -> tuple[str, str, dict[str, Any]]:
