@@ -25,9 +25,9 @@ if api_key:
     try:
         genai.configure(api_key=api_key)
         generation_config = {
-          "temperature": 0.6,
-          "top_p": 0.5,
-          "top_k": 10,
+          "temperature": 0.67,
+          "top_p": 0.6,
+          "top_k": 20,
           "max_output_tokens": 8192,
           "response_mime_type": "text/plain",
         }
