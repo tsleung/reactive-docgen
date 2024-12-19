@@ -18,8 +18,18 @@ python script-watcher.py . scripts/hello-world.sh
 ```
 export GEMINI_API_KEY=$GEMINI_API_KEY
 ```
-## Script Watcher
+## Demo
+To run the sample.rdg, run
+```
+python src/rdg.py sample.rdg
+```
 
+To run it with a watcher
+```
+python src/script-watcher.py . ./sample.rdg.sh
+```
+
+## Script Watcher
 ### Permissions Issue for Scripts
 The "permission denied" error means that the script sample.rdg.sh doesn't have execute permission. You need to make it executable using the chmod command:
 ```
