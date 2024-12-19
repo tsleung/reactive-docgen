@@ -108,21 +108,21 @@ def process_input(input_arg, file_dir):
         return input_arg
 
 
-class RdfParserError(Exception):
-    """Custom exception for RDF parsing errors."""
+class RdgParserError(Exception):
+    """Custom exception for RDG parsing errors."""
     pass
 
 def uppercase(rdg_file:str, **kwargs) -> str:
   """Converts the content of a file to uppercase."""
   try:
     if "file" not in kwargs:
-        raise RdfParserError("The file parameter is required in UPPERCASE")
+        raise RdgParserError("The file parameter is required in UPPERCASE")
     file = kwargs["file"]
     with open(file, 'r') as f:
       content = f.read()
     return content.upper()
   except FileNotFoundError:
-    raise RdfParserError(f"File not found: {file}")
+    raise RdgParserError(f"File not found: {file}")
   
 def create_file(rdg_file:str, **kwargs) -> str:
     """
@@ -135,7 +135,7 @@ def create_file(rdg_file:str, **kwargs) -> str:
    
     
     if "content" not in kwargs:
-       raise RdfParserError("The parameter 'content' is required in CREATEFILE")
+       raise RdgParserError("The parameter 'content' is required in CREATEFILE")
     
     
     file_content = kwargs["content"]
@@ -154,7 +154,7 @@ def gemini_prompt(rdg_file:str, use_filesystem_cache=True, **kwargs) -> str:
         if "template" in kwargs:
             template = kwargs.pop("template")
         else:
-          raise RdfParserError("Template must be supplied when using the GEMINIPROMPT")
+          raise RdgParserError("Template must be supplied when using the GEMINIPROMPT")
         rendered_template = render_template(template, input_data)
 
         logging.info(f"Rendered template:\n{rendered_template}")
@@ -172,7 +172,7 @@ def gemini_prompt(rdg_file:str, use_filesystem_cache=True, **kwargs) -> str:
                 save_to_cache(cache_key, rendered_template, response_text)
         return response_text
     except Exception as e:
-      raise RdfParserError(f"Error during LLM call: {e}")
+      raise RdgParserError(f"Error during LLM call: {e}")
 
 
 def create_markdown_from_directory(rdg_file: str, **kwargs) -> str:
@@ -186,7 +186,7 @@ def create_markdown_from_directory(rdg_file: str, **kwargs) -> str:
         output_file (str, optional): The name of the output markdown file.
     """
     if "directory" not in kwargs:
-         raise RdfParserError("The parameter 'directory' is required in DIRECTORYTOMARKDOWN")
+         raise RdgParserError("The parameter 'directory' is required in DIRECTORYTOMARKDOWN")
 
     directory_path = kwargs["directory"]
     
@@ -213,9 +213,9 @@ def create_markdown_from_directory(rdg_file: str, **kwargs) -> str:
                   print(f"Error reading file {file_path}: {e}")
         return output_content
     except FileNotFoundError:
-        raise RdfParserError(f"Error: Directory not found: {directory_path}")
+        raise RdgParserError(f"Error: Directory not found: {directory_path}")
     except Exception as e:
-        raise RdfParserError(f"An unexpected error occurred: {e}")
+        raise RdgParserError(f"An unexpected error occurred: {e}")
 
 # Function registry
 FUNCTION_REGISTRY: Dict[str, Callable] = {
@@ -233,14 +233,14 @@ def parse_rdg_line(line: str, file_dir: str = ".") -> tuple[str, str, dict[str, 
     
     match = re.match(r"([^=]+)=([^()]+)\((.*)\)", line) # Capture the full line
     if not match:
-      raise RdfParserError(f"Invalid line format: {line}")
+      raise RdgParserError(f"Invalid line format: {line}")
 
     output_file, formula_name, arguments_str = match.groups()
     output_file = output_file.strip()
     formula_name = formula_name.strip()
     
     if formula_name not in FUNCTION_REGISTRY:
-        raise RdfParserError(f"Unknown formula: {formula_name}")
+        raise RdgParserError(f"Unknown formula: {formula_name}")
 
     arguments = {}
     for arg_pair in arguments_str.split(","):
@@ -249,7 +249,7 @@ def parse_rdg_line(line: str, file_dir: str = ".") -> tuple[str, str, dict[str, 
           continue
         arg_match = re.match(r"([^=]+)=(.*)", arg_pair)
         if not arg_match:
-            raise RdfParserError(f"Invalid argument format: {arg_pair}")
+            raise RdgParserError(f"Invalid argument format: {arg_pair}")
         arg_name, arg_value = arg_match.groups()
         arg_name = arg_name.strip()
         arg_value = arg_value.strip()
@@ -290,7 +290,7 @@ def process_rdg_file(rdg_file: str, file_dir: str = ".") -> None:
 
                     with open(output_path, 'w') as outfile:
                         outfile.write(result)
-                except RdfParserError as e:
+                except RdgParserError as e:
                    
                     print(f"Error processing line '{line.strip()}': {e}", file=sys.stderr)
                 except Exception as e:
@@ -308,4 +308,4 @@ if __name__ == "__main__":
     rdg_file = sys.argv[1]
     file_dir = os.path.dirname(os.path.abspath(rdg_file))  # get folder of rdg file
     process_rdg_file(rdg_file, file_dir)
-    print("Rdf file parsed succesfully")
+    print("Rdg file parsed succesfully")
