@@ -1,6 +1,6 @@
-# reactive-docgen: Reactively Generate Docs
+# reactive-docgen: Reactively Generate Documentation
 
-`reactive-docgen` is a simple tool that allows you to generate docs (or any kind of text files) by processing input files using a custom formula language, all driven by a simple text file called an `rdg` file (Reactive Document Generator). Think of it like a spreadsheet where cells contain formulas that can transform data - but for files instead of numbers.
+`reactive-docgen` is a simple tool that allows you to generate documentation (or any kind of text files) by processing input files using a custom formula language, all driven by a simple text file called an `rdg` file (Reactive Document Generator). Think of it like a spreadsheet where cells contain formulas that can transform data - but for files instead of numbers.
 
 This tool uses Gemini LLM (Large Language Model), enabling you to perform tasks like text summarization, translation, and a variety of text manipulations with ease. You can also extend it with your custom formulas for specific use cases.
 
@@ -84,6 +84,36 @@ To process an `rdg` file, use the following command, replacing `samples/sample.r
 
    This command will parse your `rdg` file, execute the formulas, and create output files.
 
+### 6. Script Watcher (Optional)
+
+For scenarios where you want to automatically re-generate documentation whenever a file changes, you can use the `script-watcher.py`. This script watches a directory and executes a command (like running your `rdg.py` script) when changes are detected.
+
+1.  **Create a Shell Script (`sample.rdg.sh`)**: This script will contain the command to run, such as running `rdg.py` with your rdg file. Create a `sample.rdg.sh` file with the following content (or whatever name you want for your script):
+    ```bash
+    #!/bin/bash
+    python src/rdg.py samples/sample.rdg
+    ```
+    **Important:** Make sure that this file has execute permissions. Run `chmod +x sample.rdg.sh` to give the script execute permissions. You can run this command directly on the terminal, or copy paste this into a terminal:
+
+      ```bash
+       chmod +x sample.rdg.sh
+      ```
+2.  **Run the Script Watcher:** To use the script watcher, run:
+    ```bash
+    python src/script-watcher.py . ./sample.rdg.sh
+    ```
+    This command watches the current directory (`.`) and runs the `./sample.rdg.sh` command whenever any files inside the current directory (or any of its subdirectories) are changed.
+  
+    **Explanation of the command:**
+    -   **`python src/script-watcher.py`**: This is the command that will execute the `script-watcher.py` file.
+    -   **`.`**: This specifies the directory to watch for changes.
+    -   **`./sample.rdg.sh`**: This is the shell command to execute when changes are detected.
+
+**Note:**
+   *   The script watcher will re-run the command every time the files inside the watched directory have been modified.
+   *   Make sure the `.rdg` file used in the shell script exists.
+   *  Remember that if you specify the rdg file as `/path/to/your/rdg` then you must also specify the path where the file is located in your shell script.
+
 ### Example Workflow
 
 Here's how you might use `reactive-docgen` in a real scenario:
@@ -114,9 +144,26 @@ Here's how you might use `reactive-docgen` in a real scenario:
 *   **`RdfParserError: Template must be supplied when using the GEMINIPROMPT`**: Make sure that the template argument is included when calling the `GEMINIPROMPT` formula. Example: `GEMINIPROMPT(template="your template here", input="input.md")`
 *   **Other issues:** Make sure the input files exist at the correct locations, and that you have internet connectivity if using the `GEMINIPROMPT` formula. Check the console for any errors or warning messages.
 
-## Contributing
+### Permissions Issue for Scripts
 
-If you want to make this tool better, feel free to create a pull request with your suggestions and contributions!
+The "permission denied" error means that the script `sample.rdg.sh` doesn't have execute permission. You need to make it executable using the `chmod` command:
+```
+chmod +x sample.rdg.sh
+```
+Here's how you can grant execute permission recursively:
+```
+chmod -R +x /path/to/your/directory
+```
+A more targeted and safer approach is to grant execute permission only to files ending in `.sh` (or whatever extension you use for your shell scripts):
+
+```
+find /path/to/your/directory -name "*.sh" -exec chmod +x {} \;
+```
+
+If you have scripts using different interpreters (e.g., Bash, Python, etc.), you can use `find` with more specific criteria:
+```
+find /path/to/your/directory \( -name "*.sh" -o -name "*.py" \) -exec chmod +x {} \;
+```
 
 ## License
 
