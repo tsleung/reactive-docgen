@@ -157,10 +157,53 @@ def gemini_prompt(rdg_file:str, use_filesystem_cache=True, **kwargs) -> str:
       raise RdfParserError(f"Error during LLM call: {e}")
 
 
+def create_markdown_from_directory(rdg_file: str, **kwargs) -> str:
+    """
+    Recursively gathers files from a directory, creates a markdown file with file paths
+    and contents in code blocks.
+
+    Args:
+        rdg_file (str): The path to the rdg file (not used)
+        directory_path (str): The path to the directory to process.
+        output_file (str, optional): The name of the output markdown file.
+    """
+    if "directory" not in kwargs:
+         raise RdfParserError("The parameter 'directory' is required in DIRECTORYTOMARKDOWN")
+
+    directory_path = kwargs["directory"]
+    
+    try:
+        output_content = ""
+        for root, _, files in os.walk(directory_path):
+            for file in files:
+                file_path = os.path.join(root, file)
+                try:
+                  with open(file_path, "r", encoding="utf-8") as f:
+                      file_content = f.read()
+                  output_content += f"## {file_path}\n\n"
+                  output_content += "```\n"
+                  output_content += file_content
+                  output_content += "\n```\n\n"
+                except UnicodeDecodeError:
+                  print(f"Warning: Could not decode file content of {file_path}. Skipping content.")
+                  output_content += f"## {file_path}\n\n"
+                  output_content += "```\n"
+                  output_content += f"Warning: Could not decode content of {file_path} using utf-8 encoding.\n"
+                  output_content += "\n```\n\n"
+
+                except Exception as e:
+                  print(f"Error reading file {file_path}: {e}")
+        return output_content
+    except FileNotFoundError:
+        raise RdfParserError(f"Error: Directory not found: {directory_path}")
+    except Exception as e:
+        raise RdfParserError(f"An unexpected error occurred: {e}")
+
 # Function registry
 FUNCTION_REGISTRY: Dict[str, Callable] = {
     "UPPERCASE": uppercase,
     "GEMINIPROMPT": gemini_prompt,
+    "DIRECTORYTOMARKDOWN": create_markdown_from_directory,
 }
 
 def parse_rdg_line(line: str, file_dir: str = ".") -> tuple[str, str, dict[str, Any]]:
@@ -219,11 +262,17 @@ def process_rdg_file(rdg_file: str, file_dir: str = ".") -> None:
                     output_dir = os.path.dirname(output_path)
                     if output_dir and not os.path.exists(output_dir):
                         os.makedirs(output_dir, exist_ok=True)
-
+                    
+                    # Delete the output file if it exists
+                    if os.path.exists(output_path):
+                      os.remove(output_path)
+                    
                     result = formula(rdg_file, **arguments)
+
                     with open(output_path, 'w') as outfile:
                         outfile.write(result)
                 except RdfParserError as e:
+                   
                     print(f"Error processing line '{line.strip()}': {e}", file=sys.stderr)
                 except Exception as e:
                     print(f"An unexpected error occurred processing line '{line.strip()}': {e}", file=sys.stderr)
