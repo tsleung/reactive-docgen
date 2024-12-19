@@ -47,7 +47,7 @@ source .venv/bin/activate # Activates the virtual environment on macOS/Linux
    -   **`(...)`**: Inside the parentheses, we define **named arguments** for the formula. Each argument is defined as `argument_name="value"`.
    -  **named arguments**: arguments for the formula, these are key-value pairs that can take either a string or the path of a file. If a string is used, it must be encapsulated with quotes (either single or double quotes). File paths don't need any quotes.
 
-   **Example `samples/sample.rdg` File:**
+   **Example `sample.rdg` File:**
 
    ```
    samples/hello.md=CREATEFILE(content="Hello world?!")
@@ -74,10 +74,10 @@ source .venv/bin/activate # Activates the virtual environment on macOS/Linux
 
 ### 5. Running the Script
 
-To process an `rdg` file, use the following command, replacing `samples/sample.rdg` with the path to your `rdg` file:
+To process an `rdg` file, use the following command, replacing `sample.rdg` with the path to your `rdg` file:
 
    ```bash
-   python src/rdg.py samples/sample.rdg
+   python src/rdg.py sample.rdg
    ```
    
    If you are in the root directory, and have a `sample.rdg` file located inside the `samples` folder, then you can use the above command directly. This will automatically generate the `samples` directory, and the output files inside it. If you wish to run the script on another rdg file, simply change the path to your `rdg` file in the command above.
@@ -91,7 +91,7 @@ For scenarios where you want to automatically re-generate documentation whenever
 1.  **Create a Shell Script (`sample.rdg.sh`)**: This script will contain the command to run, such as running `rdg.py` with your rdg file. Create a `sample.rdg.sh` file with the following content (or whatever name you want for your script):
     ```bash
     #!/bin/bash
-    python src/rdg.py samples/sample.rdg
+    python src/rdg.py sample.rdg
     ```
     **Important:** Make sure that this file has execute permissions. Run `chmod +x sample.rdg.sh` to give the script execute permissions. You can run this command directly on the terminal, or copy paste this into a terminal:
 
