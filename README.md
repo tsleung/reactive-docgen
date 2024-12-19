@@ -1,8 +1,8 @@
-# reactive-docgen: Reactively Generate Documentation
+# reactive-docgen: Reactively Generate Docs
 
-`reactive-docgen` is a simple tool that allows you to generate documentation (or any kind of text files) by processing input files using a custom formula language, all driven by a simple text file called an `rdg` file (Reactive Document Generator). Think of it like a spreadsheet where cells contain formulas that can transform data - but for files instead of numbers.
+`reactive-docgen` is a simple tool that allows you to generate docs (or any kind of text files) by processing input files using a custom formula language, all driven by a simple text file called an `rdg` file (Reactive Document Generator). Think of it like a spreadsheet where cells contain formulas that can transform data - but for files instead of numbers.
 
-This tool uses Gemini LLM (Large Language Model), enabling you to perform tasks like text summarization, translation, and a variety of text manipulations with ease. You can also extend it with your custom formulas for specific use cases.
+This tool uses Gemini, an LLM (Large Language Model), enabling you to perform tasks like text generation, translation, and a variety of text manipulations with ease. You can also extend it with your custom formulas for specific use cases.
 
 ## Getting Started
 
