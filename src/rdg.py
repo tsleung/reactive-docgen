@@ -228,25 +228,28 @@ FUNCTION_REGISTRY: Dict[str, Callable] = {
 def parse_rdg_line(line: str, file_dir: str = ".") -> tuple[str, str, dict[str, Any]]:
     """Parses a single line of the rdg file."""
     line = line.strip()
-    if not line or line.startswith("#"): # skip comments and empty lines
+    if not line or line.startswith("#"):  # skip comments and empty lines
         return None, None, None
-    
-    match = re.match(r"([^=]+)=([^()]+)\((.*)\)", line) # Capture the full line
+
+    match = re.match(r"([^=]+)=([^()]+)\((.*)\)", line)  # Capture the full line
     if not match:
-      raise RdgParserError(f"Invalid line format: {line}")
+        raise RdgParserError(f"Invalid line format: {line}")
 
     output_file, formula_name, arguments_str = match.groups()
     output_file = output_file.strip()
     formula_name = formula_name.strip()
-    
+
     if formula_name not in FUNCTION_REGISTRY:
         raise RdgParserError(f"Unknown formula: {formula_name}")
 
     arguments = {}
-    for arg_pair in arguments_str.split(","):
+    # Regex to split on commas outside of quotes
+    argument_pairs = re.split(r',\s*(?=(?:[^"\']*["\'][^"\']*["\'])*[^"\']*$)', arguments_str)
+
+    for arg_pair in argument_pairs:
         arg_pair = arg_pair.strip()
         if not arg_pair:
-          continue
+            continue
         arg_match = re.match(r"([^=]+)=(.*)", arg_pair)
         if not arg_match:
             raise RdgParserError(f"Invalid argument format: {arg_pair}")
@@ -261,7 +264,7 @@ def parse_rdg_line(line: str, file_dir: str = ".") -> tuple[str, str, dict[str, 
         else:
           # file path so we expand it with file_dir
            arguments[arg_name] = os.path.join(file_dir, arg_value)
-
+           
     return output_file, formula_name, arguments
 
 def process_rdg_file(rdg_file: str, file_dir: str = ".") -> None:
