@@ -228,10 +228,10 @@ FUNCTION_REGISTRY: Dict[str, Callable] = {
 def parse_rdg_line(line: str, file_dir: str = ".") -> tuple[str, str, dict[str, Any]]:
     """Parses a single line of the rdg file."""
     line = line.strip()
-    if not line or line.startswith("#"):  # skip comments and empty lines
+    if not line or line.startswith("#"):
         return None, None, None
 
-    match = re.match(r"([^=]+)=([^()]+)\((.*)\)", line)  # Capture the full line
+    match = re.match(r"([^=]+)=([^()]+)\((.*)\)", line)
     if not match:
         raise RdgParserError(f"Invalid line format: {line}")
 
@@ -258,13 +258,15 @@ def parse_rdg_line(line: str, file_dir: str = ".") -> tuple[str, str, dict[str, 
         arg_value = arg_value.strip()
         
         # check if string or file
-        if arg_value.startswith('"') and arg_value.endswith('"') or arg_value.startswith("'") and arg_value.endswith("'"):
-          # string, so we strip it.
-          arguments[arg_name] = arg_value[1:-1]
+        if (arg_value.startswith('"') and arg_value.endswith('"')) or (arg_value.startswith("'") and arg_value.endswith("'")):
+          # string, so we strip it and handle escaped quotes
+          arg_value = arg_value[1:-1]
+          arg_value = arg_value.replace('\\"', '"').replace("\\'", "'")
+          arguments[arg_name] = arg_value
         else:
-          # file path so we expand it with file_dir
-           arguments[arg_name] = os.path.join(file_dir, arg_value)
-           
+          # file path so we expand it with file_dir and handle relative paths
+           arguments[arg_name] = os.path.normpath(os.path.join(file_dir, arg_value))
+
     return output_file, formula_name, arguments
 
 def process_rdg_file(rdg_file: str, file_dir: str = ".") -> None:
