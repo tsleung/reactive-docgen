@@ -1,0 +1,13 @@
+brainstorm.md=GEMINIPROMPT(template="You are a senior game designer. Your task is to advise a student who would like to build a game based on the following notes. Ask questions and help them brainstorm, give them ideas of how to move forward and provoke them to do more. Here are the notes: $input", input="./notes.md")
+
+prd.md=GEMINIPROMPT(template="Create a PRD for the following: $input", input="./notes.md")
+
+loop.md=GEMINIPROMPT(template="Describe a core game loop for the following game. Show concrete examples of multiple variants:\PRD ${prd} \n Notes: $input", prd="./prd.md", input="./notes.md")
+
+uxl.md=GEMINIPROMPT(template="You are a senior UX leader. Your task is to describe the game UI to build given the following notes. \n$loop $brainstorm $prd", loop="./loop.md", brainstorm="./brainstorm.md", prd="./prd.md")
+
+code.md=GEMINIPROMPT(template="Based on all the notes we have about the game, create an HTML file with inline css/js that will be an MVP of the game. \n$brainstorm $loop $uxl $prd", brainstorm="./brainstorm.md", loop="./loop.md", uxl="./uxl.md", prd="./prd.md")
+
+index.html=GEMINIPROMPT(template="Copy only the code from the following, remove all markdown tags: $code", code="./code.md")
+
+sed '1d;$d' index.html > index.html
