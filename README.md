@@ -8,7 +8,7 @@ This tool uses Gemini, an LLM (Large Language Model), enabling you to perform ta
 
 Here's a step-by-step guide on how to get `reactive-docgen` up and running on your machine:
 
-*   **Detailed Setup and Usage Guide**: For a thorough introduction, see our [Detailed Setup and Usage Guide](detailed-setup.md).
+*   **Detailed Setup and Usage Guide**: For a thorough introduction, or you're unfamiliar with Python, see our [Detailed Setup and Usage Guide](detailed-setup.md).
 
 ### 1. Install Google Generative AI Library
 
