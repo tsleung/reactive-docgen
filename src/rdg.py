@@ -108,8 +108,8 @@ def _fetch_file_content(file_path: str, rdg_file: str) -> str:
     if (file_path.startswith('"') and file_path.endswith('"')) or (file_path.startswith("'") and file_path.endswith("'")):
         # string, so we strip it and handle escaped quotes
         return file_path[1:-1].replace('\\"', '"').replace("\\'", "'")
-
-    full_path = os.path.normpath(os.path.join(os.path.dirname(rdg_file), file_path))
+    
+    full_path = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(rdg_file)), file_path))
     logging.info(f"Checking for file: {full_path}")
     
     if os.path.exists(full_path):
@@ -298,7 +298,7 @@ def parse_rdg_line(line: str, file_dir: str = ".") -> tuple[str, str, dict[str, 
 
     arguments = {}
     # Regex to split on commas outside of quotes
-    argument_pairs = re.split(r',\s*(?=(?:[^"\']*["\'][^"\']*["\'])*[^"\']*$)', arguments_str)
+    argument_pairs = re.split(r',\s*(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)', arguments_str)
 
     for arg_pair in argument_pairs:
         arg_pair = arg_pair.strip()
