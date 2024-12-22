@@ -12,16 +12,21 @@ Welcome to `reactive-docgen`! This tool empowers you to generate text files by p
 
 ## Step-by-Step Guide
 
-### 0. Install Python and pip (Primarily for macOS)
+### 0. Install Python, pip, and Git (Primarily for macOS)
 
-*   **What are Python and pip?** Python is a programming language that `reactive-docgen` is written in, and `pip` is a tool used for downloading and installing necessary tools that extend the basic python functionality, these tools are called "packages" or "libraries".
-*   **Check if you have Python:** Open your **Terminal** (found in Applications > Utilities) and type `python3 --version` and press Enter.
+*   **What are Python, pip, and Git?** Python is a programming language that `reactive-docgen` is written in, and `pip` is a tool used for downloading and installing necessary tools that extend the basic python functionality, these tools are called "packages" or "libraries". Git is a version control system that allows you to clone repositories from services such as GitHub.
+*   **Check if you have Python:** Open your **Terminal** (found in Applications > Utilities on macOS) or Command Prompt (Windows) and type `python3 --version` (or `python --version` on some systems) then press Enter.
     *   If you get a version number (e.g., `Python 3.9.6`), you have Python installed.
     *   If you get an error, you likely don't have it installed, or it isn't in your PATH.
-*   **Download Python:** If needed, go to the official [Python website](https://www.python.org/downloads/) and download the macOS installer. Other OSs also have installers available in this location.
-*   **Run the Installer:** Execute the downloaded installer and follow the instructions, ensuring you select the "Add Python to PATH" checkbox during the installation process. This allows you to run Python commands from your terminal.
-*   **Check if you have pip:** Open your terminal and type `pip3 --version` and press Enter. If you get a version number, you have `pip` installed. `pip` is usually installed by default if you installed Python correctly.
+*   **Download Python:** If needed, go to the official [Python website](https://www.python.org/downloads/) and download the appropriate installer for your operating system.
+*   **Run the Installer:** Execute the downloaded installer and follow the instructions, ensuring you select the "Add Python to PATH" or similar option during the installation process. This allows you to run Python commands from your terminal or command prompt.
+*   **Check if you have pip:** Open your terminal or command prompt and type `pip3 --version` (or `pip --version`) then press Enter. If you get a version number, you have `pip` installed. `pip` is usually installed by default if you installed Python correctly.
     *   If you don't get a version number, please try re-installing Python and ensure you select the option to add to path.
+*   **Check if you have Git:** Open your terminal or command prompt and type `git --version` then press Enter.
+    *   If you get a version number (e.g., `git version 2.39.2`), you have Git installed.
+    *   If you get an error, you likely don't have it installed.
+*   **Download Git (if needed):** If you don't have Git installed, go to the official [Git website](https://git-scm.com/downloads) and download the appropriate installer for your operating system.
+*   **Run the Git Installer:** Execute the downloaded Git installer and follow the instructions. You can usually accept the default settings.
 
 ### 1. Copy the `reactive-docgen` Code to Your Computer
 
@@ -39,12 +44,12 @@ This step involves downloading the files so you can use the tool. This process i
         *   Use the following command, replacing `your-repo-link` with the actual link to the GitHub repository for `reactive-docgen`:
 
             ```bash
-            git clone https://github.com/your-repo-link
+            git clone https://github.com/tsleung/reactive-docgen
             ```
         *   The `reactive-docgen` will now be downloaded to your computer in the directory where you executed the command.
         *   **For other operating systems**: Use the terminal application available in your OS.
 
-### 1. (Optional) Create a Virtual Environment (macOS)
+### 2. (Optional) Create a Virtual Environment (macOS)
 
 *   **What is a Virtual Environment?** A virtual environment is a way to create isolated Python environments. This helps avoid conflicts between different projects that may require different versions of the same packages, and is a recommended practice for any project that uses Python.
 *   Using a virtual environment isolates your Python installations, and is recommended.
@@ -58,14 +63,14 @@ This step involves downloading the files so you can use the tool. This process i
     ```
  *   **For other operating systems**: you may have to search for platform specific instructions for setting up a virtual environment.
 
-### 2. Set Up Your Gemini API Key
+### 3. Set Up Your Gemini API Key
 
 To allow `reactive-docgen` to interact with the Gemini AI model, you'll need to set up a Gemini API key.
 
 1.  Go to the [Google AI platform website](https://ai.google.dev/) and sign in with your Google account.
 2.  Follow the instructions to get a Gemini API key. This is provided free of charge.
 3.  **Create a `.env` file:**
-    *   Open any text editor on your computer, such as TextEdit (macOS) or Notepad (Windows)
+    *   Open any text editor on your computer, such as TextEdit (macOS) or Visual Studio Code (recommended)
     *   Type the following line into the editor, replacing `your_api_key_here` with the Gemini API key you obtained:
 
         ```
@@ -76,7 +81,7 @@ To allow `reactive-docgen` to interact with the Gemini AI model, you'll need to 
     *   Save the file with the name `.env` in the same folder where you downloaded the `reactive-docgen` code.
         *   Ensure that the file is saved as "All Files" to avoid accidentally saving it as a `.txt` file.
 
-### 3. Run the `sample.rdg` File
+### 4. Run the `sample.rdg` File
 
 With the code and API key configured, you can now execute the `sample.rdg` file.
 
