@@ -97,16 +97,26 @@ def render_template(template_str, input_data):
     except Exception as e:
         raise RuntimeError(f"Template rendering failed: {e}")
 
+def _fetch_file_content(file_path: str, rdg_file: str) -> str:
+    """
+    Fetches the content of a file, ensuring paths are relative to the rdg file.
+    Returns the file content or the original path if the file doesn't exist.
+    """
+    if not file_path:
+       return file_path
+    
+    if (file_path.startswith('"') and file_path.endswith('"')) or (file_path.startswith("'") and file_path.endswith("'")):
+        # string, so we strip it and handle escaped quotes
+        return file_path[1:-1].replace('\\"', '"').replace("\\'", "'")
 
-def process_input(input_arg, file_dir):
-    file_path = os.path.join(file_dir, input_arg)
-    logging.info(f"Checking for file: {file_path}")
-    if os.path.exists(file_path):
-        with open(file_path, 'r') as f:
+    full_path = os.path.normpath(os.path.join(os.path.dirname(rdg_file), file_path))
+    logging.info(f"Checking for file: {full_path}")
+    
+    if os.path.exists(full_path):
+        with open(full_path, 'r') as f:
             return f.read().strip()
     else:
-        return input_arg
-
+        return file_path
 
 class RdgParserError(Exception):
     """Custom exception for RDG parsing errors."""
@@ -118,8 +128,12 @@ def uppercase(rdg_file:str, **kwargs) -> str:
     if "file" not in kwargs:
         raise RdgParserError("The file parameter is required in UPPERCASE")
     file = kwargs["file"]
-    with open(file, 'r') as f:
-      content = f.read()
+    content = _fetch_file_content(file, rdg_file)
+    
+    if os.path.exists(content):
+        with open(content, 'r') as f:
+             content = f.read()
+
     return content.upper()
   except FileNotFoundError:
     raise RdgParserError(f"File not found: {file}")
@@ -148,13 +162,53 @@ def gemini_prompt(rdg_file:str, use_filesystem_cache=True, **kwargs) -> str:
     try:
         input_data = {}
         for key, value in kwargs.items():
-            # Pass file_dir to process input
-            input_data[key] = process_input(value, os.path.dirname(rdg_file))
-            
+            # Fetch all file contents through _fetch_file_content
+            input_data[key] = _fetch_file_content(value, rdg_file)
+        
         if "template" in kwargs:
             template = kwargs.pop("template")
         else:
-          raise RdgParserError("Template must be supplied when using the GEMINIPROMPT")
+            raise RdgParserError("Template must be supplied when using the GEMINIPROMPT")
+
+        rendered_template = render_template(template, input_data)
+
+        logging.info(f"Rendered template:\n{rendered_template}")
+
+        cache_key = get_cache_key(rendered_template)
+        cached_request, cached_response = load_from_cache(cache_key)
+
+        if cached_response:
+            logging.info(f"Loaded from cache (key: {cache_key})")
+            response_text = cached_response
+        else:
+            logging.info(f"API Call (key: {cache_key})")
+            response_text = memoized_gemini_call(rendered_template)
+            if use_filesystem_cache:
+                save_to_cache(cache_key, rendered_template, response_text)
+        return response_text
+    except Exception as e:
+        raise RdgParserError(f"Error during LLM call: {e}")
+
+def gemini_prompt_from_file(rdg_file:str, use_filesystem_cache=True, **kwargs) -> str:
+    """Sends the file content to an LLM and returns the response using caching."""
+    
+    try:
+        input_data = {}
+        for key, value in kwargs.items():
+            # Fetch all file contents through _fetch_file_content
+            input_data[key] = _fetch_file_content(value, rdg_file)
+            
+        if "template_file" in kwargs:
+            template_file = kwargs.pop("template_file")
+            template_content = _fetch_file_content(template_file,rdg_file)
+            
+            if os.path.exists(template_content):
+                with open(template_content, 'r') as f:
+                    template = f.read()
+            else:
+              template = template_content
+        else:
+          raise RdgParserError("Template file must be supplied when using the GEMINIPROMPTFILE")
         rendered_template = render_template(template, input_data)
 
         logging.info(f"Rendered template:\n{rendered_template}")
@@ -174,7 +228,6 @@ def gemini_prompt(rdg_file:str, use_filesystem_cache=True, **kwargs) -> str:
     except Exception as e:
       raise RdgParserError(f"Error during LLM call: {e}")
 
-
 def create_markdown_from_directory(rdg_file: str, **kwargs) -> str:
     """
     Recursively gathers files from a directory, creates a markdown file with file paths
@@ -183,12 +236,12 @@ def create_markdown_from_directory(rdg_file: str, **kwargs) -> str:
     Args:
         rdg_file (str): The path to the rdg file (not used)
         directory_path (str): The path to the directory to process.
-        output_file (str, optional): The name of the output markdown file.
     """
     if "directory" not in kwargs:
          raise RdgParserError("The parameter 'directory' is required in DIRECTORYTOMARKDOWN")
 
     directory_path = kwargs["directory"]
+    directory_path = _fetch_file_content(directory_path, rdg_file)
     
     try:
         output_content = ""
@@ -221,6 +274,7 @@ def create_markdown_from_directory(rdg_file: str, **kwargs) -> str:
 FUNCTION_REGISTRY: Dict[str, Callable] = {
     "UPPERCASE": uppercase,
     "GEMINIPROMPT": gemini_prompt,
+    "GEMINIPROMPTFILE": gemini_prompt_from_file,
     "DIRECTORYTOMARKDOWN": create_markdown_from_directory,
     "CREATEFILE": create_file,
 }
@@ -257,15 +311,8 @@ def parse_rdg_line(line: str, file_dir: str = ".") -> tuple[str, str, dict[str, 
         arg_name = arg_name.strip()
         arg_value = arg_value.strip()
         
-        # check if string or file
-        if (arg_value.startswith('"') and arg_value.endswith('"')) or (arg_value.startswith("'") and arg_value.endswith("'")):
-          # string, so we strip it and handle escaped quotes
-          arg_value = arg_value[1:-1]
-          arg_value = arg_value.replace('\\"', '"').replace("\\'", "'")
-          arguments[arg_name] = arg_value
-        else:
-          # file path so we expand it with file_dir and handle relative paths
-           arguments[arg_name] = os.path.normpath(os.path.join(file_dir, arg_value))
+        # All input values now get processed in the function call to allow file expansion
+        arguments[arg_name] = arg_value
 
     return output_file, formula_name, arguments
 
