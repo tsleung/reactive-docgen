@@ -1,3 +1,4 @@
+```
 # reactive-docgen: Reactively Generate Docs
 
 `reactive-docgen` is a simple tool that allows you to generate text files by processing input files using a custom formula language, all driven by a simple text file called an `rdg` file. Think of it like a spreadsheet where cells contain formulas that can transform data – but for files instead of numbers. With `reactive-docgen`, you can generate a wide range of creative outputs, including documents, stories, game ideas, or even simulate workflows by adopting different advisory personas such as an investor, designer, or software engineer.
@@ -9,6 +10,7 @@ This tool uses Gemini, an LLM (Large Language Model), enabling you to perform ta
 Here's a step-by-step guide on how to get `reactive-docgen` up and running on your machine:
 
 *   **Detailed Setup and Usage Guide**: For a thorough introduction, or you're unfamiliar with Python, see our [Detailed Setup and Usage Guide](detailed-setup.md).
+*   **Sample Output:** See the [sample output directory](samples/).
 
 ### 1. Install Google Generative AI Library
 
@@ -59,12 +61,12 @@ source .venv/bin/activate # Activates the virtual environment on macOS/Linux
 ```
 samples/hello.md=CREATEFILE(content="Ooo, Hello world?!")
 samples/notes.md=UPPERCASE(file="samples/hello.md")
-samples/workspace/draft.md=GEMINIPROMPT(template="You are an author. Create a story about the following: $input", input="samples/workspace/notes.md")
+samples/workspace/draft.md=GEMINIPROMPT(template="You are an author. Create a story about the following: $input", input="samples/notes.md")
 samples/workspace/feedback.md=GEMINIPROMPT(template="You are an editor. Provide feedback for the following story: $input", input="samples/workspace/draft.md")
 samples/workspace/revision.md=GEMINIPROMPT(template="You are an author. Apply the provided feedback to your original draft, include comments: \n$feedback \n$story", feedback="samples/workspace/feedback.md", story="samples/workspace/draft.md")
 samples/final.md=GEMINIPROMPT(template="You a publisher. Create the final version of the following story to copy and paste to print. Do not include any comments. This is the story: $story", story="samples/workspace/revision.md")
-samples/pitch.md=GEMINIPROMPT(template="Create a short pitch about what your story is about: $input", input="samples/final.md")
-samples/workspace/draft-italian.md=GEMINIPROMPT(template="Translate to italian. Add comments where the translation is difficult or the original meaning has been changed. Here is the text: $input", input="samples/final.md")
+samples/pitch.md=GEMINIPROMPT(template="You're a story marketer. Create a short pitch about what this story is about: $input", input="samples/final.md")
+samples/workspace/draft-italian.md=GEMINIPROMPT(template="You are a translator. Translate to italian. Add comments where the translation is difficult or the original meaning has been changed. Here is the text: $input", input="samples/final.md")
 samples/story-italian.md=GEMINIPROMPT(template="Extract only the translated text. Do not include comments. This is the text: $input", input="samples/workspace/draft-italian.md")
 samples/templates/pirate-reader.md=CREATEFILE(content="Read the story with a pirate accent. Do not include comments. This is the story: $input")
 samples/story-pirate.md=GEMINIPROMPTFILE(template_file="samples/templates/pirate-reader.md", input="samples/final.md")
@@ -210,3 +212,4 @@ find /path/to/your/directory \( -name "*.sh" -o -name "*.py" \) -exec chmod +x {
 ## License
 
 This project is licensed under the **GNU General Public License v3.0** (GPLv3). This license is chosen to ensure that the tool and any derivative works remain open-source and that its users are guaranteed certain freedoms.
+```

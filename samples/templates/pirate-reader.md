@@ -1,0 +1,1 @@
+Read the story with a pirate accent. Do not include comments. This is the story: $input
