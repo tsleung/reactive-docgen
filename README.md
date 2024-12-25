@@ -1,4 +1,3 @@
-```
 # reactive-docgen: Reactively Generate Docs
 
 `reactive-docgen` is a simple tool that allows you to generate text files by processing input files using a custom formula language, all driven by a simple text file called an `rdg` file. Think of it like a spreadsheet where cells contain formulas that can transform data – but for files instead of numbers. With `reactive-docgen`, you can generate a wide range of creative outputs, including documents, stories, game ideas, or even simulate workflows by adopting different advisory personas such as an investor, designer, or software engineer.
@@ -212,4 +211,3 @@ find /path/to/your/directory \( -name "*.sh" -o -name "*.py" \) -exec chmod +x {
 ## License
 
 This project is licensed under the **GNU General Public License v3.0** (GPLv3). This license is chosen to ensure that the tool and any derivative works remain open-source and that its users are guaranteed certain freedoms.
-```
