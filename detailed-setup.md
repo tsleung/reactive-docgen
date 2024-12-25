@@ -109,7 +109,24 @@ With the code and API key configured, you can now execute the `sample.rdg` file.
 
 ## What to Expect
 
-When you run `sample.rdg`, it will generate several new files within the `samples` folder, which are transformed versions of text based on specific processing steps that use Gemini.
+When you run `samples/sample.rdg`, it will generate several new files within the `samples` folder, including subfolders such as `samples/workspace`. These files are the results of processing your input using the Gemini AI model, based on the `sample.rdg` file.
+
+Specifically, the following files will be generated:
+
+-   `samples/hello.md`: A file containing the text "Ooo, Hello world?!".
+-   `samples/notes.md`: A file containing the uppercase version of `samples/hello.md`.
+-   `samples/workspace/draft.md`: A file containing a story based on the content of `samples/notes.md`.
+-   `samples/workspace/feedback.md`: A file containing feedback for the story in `samples/workspace/draft.md`.
+-   `samples/workspace/revision.md`: A file containing a revision of the story from `samples/workspace/draft.md`, incorporating the feedback from `samples/workspace/feedback.md`, including comments.
+-   `samples/final.md`: A final version of the story from `samples/workspace/revision.md` without any comments.
+-   `samples/pitch.md`: A short pitch about the story in `samples/final.md`.
+-   `samples/workspace/draft-italian.md`: A file containing the Italian translation of the final story with comments about difficult translations.
+-   `samples/story-italian.md`: A file containing only the translated text of the story in `samples/workspace/draft-italian.md`, without comments.
+-   `samples/templates/pirate-reader.md`: A template file to read the story with a pirate accent, which is not shown to the user directly.
+-   `samples/story-pirate.md`: A file containing the story read with a pirate accent, based on `samples/final.md` using the `samples/templates/pirate-reader.md` template.
+-   `samples/all-notes.md`: A file containing all the files inside the directory `samples/workspace` in a markdown format.
+
+You may use a code editor such as Visual Studio Code (VS Code) to view your output.
 
 ## Next Steps
 
