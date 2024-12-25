@@ -1,3 +1,3 @@
 #!/bin/bash
 
-python src/rdg.py sample.rdg
+python src/rdg.py "$(dirname "$0")/sample.rdg"

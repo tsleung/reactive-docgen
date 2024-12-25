@@ -57,23 +57,29 @@ source .venv/bin/activate # Activates the virtual environment on macOS/Linux
 **Example `sample.rdg` File:**
 
 ```
-samples/hello.md=CREATEFILE(content="Hello world?!")
-samples/output.md=UPPERCASE(file="samples/hello.md")
-samples/output2.md=GEMINIPROMPT(template="Create a story about the following: $input", input="samples/output.md")
-samples/output3.md=GEMINIPROMPT(template="Translate to italian: $input", input="samples/output2.md")
-samples/output4.md=GEMINIPROMPT(template="Translate to german: $input", input="samples/output2.md")
-samples/template.md=CREATEFILE(content="Write a story with a pirate accent $input")
-samples/output5.md=GEMINIPROMPTFILE(template_file="samples/template.md", input="samples/output.md")
-samples/directory.md=DIRECTORYTOMARKDOWN(directory="samples")
+samples/hello.md=CREATEFILE(content="Ooo, Hello world?!")
+samples/notes.md=UPPERCASE(file="samples/hello.md")
+samples/workspace/draft.md=GEMINIPROMPT(template="You are an author. Create a story about the following: $input", input="samples/workspace/notes.md")
+samples/workspace/feedback.md=GEMINIPROMPT(template="You are an editor. Provide feedback for the following story: $input", input="samples/workspace/draft.md")
+samples/workspace/revision.md=GEMINIPROMPT(template="You are an author. Apply the provided feedback to your original draft, include comments: \n$feedback \n$story", feedback="samples/workspace/feedback.md", story="samples/workspace/draft.md")
+samples/final.md=GEMINIPROMPT(template="You a publisher. Create the final version of the following story to copy and paste to print. Do not include any comments. This is the story: $story", story="samples/workspace/revision.md")
+samples/pitch.md=GEMINIPROMPT(template="Create a short pitch about what your story is about: $input", input="samples/final.md")
+samples/workspace/draft-italian.md=GEMINIPROMPT(template="Translate to italian. Add comments where the translation is difficult or the original meaning has been changed. Here is the text: $input", input="samples/final.md")
+samples/story-italian.md=GEMINIPROMPT(template="Extract only the translated text. Do not include comments. This is the text: $input", input="samples/workspace/draft-italian.md")
+samples/templates/pirate-reader.md=CREATEFILE(content="Read the story with a pirate accent. Do not include comments. This is the story: $input")
+samples/story-pirate.md=GEMINIPROMPTFILE(template_file="samples/templates/pirate-reader.md", input="samples/final.md")
+samples/all-notes.md=DIRECTORYTOMARKDOWN(directory="samples/workspace")
 ```
 
 In the above example:
 
-*   `CREATEFILE` creates a file named `samples/hello.md` with the content `Hello world?!`.
-*   `UPPERCASE` converts the content of `samples/hello.md` into uppercase, and outputs it to `samples/output.md`.
-*   `GEMINIPROMPT` uses the Gemini LLM to create a story from the content of the `samples/output.md` file, then translates it to Italian and German.
-*  `GEMINIPROMPTFILE` loads a template file `samples/template.md`, and generates a file `samples/output5.md` based on that template with the content of `samples/output.md` as input.
-*   `DIRECTORYTOMARKDOWN` takes all the files inside the `samples` directory, and creates a markdown file with their paths and contents inside a code block.
+*   `CREATEFILE` creates a file named `samples/hello.md` with the content `Ooo, Hello world?!`.
+*   `UPPERCASE` converts the content of `samples/hello.md` into uppercase, and outputs it to `samples/notes.md`.
+*   `GEMINIPROMPT` uses the Gemini LLM to create a story from the content of the `samples/workspace/notes.md` file, then gets feedback, does a revision including comments, and creates a final version without comments.
+*   The `GEMINIPROMPT` formula is also used to generate a pitch of the final version.
+*   The `GEMINIPROMPT` formula is also used to generate an italian version of the final story, including comments, and then extracts the translated version without comments.
+*  `GEMINIPROMPTFILE` loads a template file `samples/templates/pirate-reader.md`, and generates a file `samples/story-pirate.md` based on that template with the content of `samples/final.md` as input.
+*   `DIRECTORYTOMARKDOWN` takes all the files inside the `samples/workspace` directory, and creates a markdown file with their paths and contents inside a code block.
 
 **Available Formulas:**
 
