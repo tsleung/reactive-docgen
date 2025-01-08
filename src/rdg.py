@@ -141,8 +141,13 @@ def create_file(rdg_file:str, **kwargs) -> str:
     if "content" not in kwargs:
        raise RdgParserError("The parameter 'content' is required in CREATEFILE")
     
+    template_content = kwargs.pop("content")
     
-    file_content = kwargs["content"]
+    input_data = {}
+    for key, value in kwargs.items():
+       input_data[key] = process_input(value, os.path.dirname(rdg_file))
+    
+    file_content = render_template(template_content, input_data)
     
     return file_content
 
@@ -263,13 +268,61 @@ def create_markdown_from_directory(rdg_file: str, **kwargs) -> str:
     except Exception as e:
         raise RdgParserError(f"An unexpected error occurred: {e}")
 
+def create_markdown_from_files(rdg_file: str, **kwargs) -> str:
+    """
+    Gathers content from specified files and creates a markdown string with file paths
+    and their content in code blocks.
+    
+    Args:
+        rdg_file (str): The path to the rdg file (not used)
+        files (list): A comma separated string of file paths
+    """
+    if "files" not in kwargs:
+        raise RdgParserError("The parameter 'files' is required in FILESTOMARKDOWN")
+
+    files_str = kwargs["files"]
+    
+    # Split the comma-separated string into a list of paths, stripping whitespace
+    file_paths = [f.strip() for f in files_str.split(",")]
+    
+     # Construct the absolute path to the directory relative to rdg_file
+    rdg_dir = os.path.dirname(os.path.abspath(rdg_file))
+
+    output_content = ""
+    for file_path in file_paths:
+       full_file_path = os.path.normpath(os.path.join(rdg_dir, file_path))
+       try:
+           with open(full_file_path, "r", encoding="utf-8") as f:
+             file_content = f.read()
+           output_content += f"## {file_path}\n\n"
+           output_content += "```\n"
+           output_content += file_content
+           output_content += "\n```\n\n"
+       except UnicodeDecodeError:
+            print(f"Warning: Could not decode file content of {file_path}. Skipping content.")
+            output_content += f"## {file_path}\n\n"
+            output_content += "```\n"
+            output_content += f"Warning: Could not decode content of {file_path} using utf-8 encoding.\n"
+            output_content += "\n```\n\n"
+
+       except FileNotFoundError:
+            print(f"Warning: File not found {file_path}. Skipping content.")
+            output_content += f"## {file_path}\n\n"
+            output_content += "```\n"
+            output_content += f"Warning: Could not find file {file_path}.\n"
+            output_content += "\n```\n\n"
+       except Exception as e:
+           print(f"Error reading file {file_path}: {e}")
+    return output_content
+
 # Function registry
 FUNCTION_REGISTRY: Dict[str, Callable] = {
     "UPPERCASE": uppercase,
     "GEMINIPROMPT": gemini_prompt,
     "GEMINIPROMPTFILE": gemini_prompt_from_file,
-    "DIRECTORYTOMARKDOWN": create_markdown_from_directory,
-    "CREATEFILE": create_file,
+    "DIRECTORYTOMARKDOWN": create_markdown_from_directory, # move to 'delete first registry'
+    "FILESTOMARKDOWN": create_markdown_from_files,
+    "CREATEFILE": create_file, # move to 'create only' registry
 }
 
 def parse_rdg_line(line: str, file_dir: str = ".") -> tuple[str, str, dict[str, Any]]:
