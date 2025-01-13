@@ -63,6 +63,14 @@ This step involves downloading the files so you can use the tool. This process i
     ```
  *   **For other operating systems**: you may have to search for platform specific instructions for setting up a virtual environment.
 
+This tool utilizes the `google-generativeai` library. You can install it using `pip`:
+
+```bash
+pip install google-generativeai python-dotenv
+```
+
+The `python-dotenv` library allows you to use the API key using a `.env` file, which is more secure than exposing the API key in your terminal.
+
 ### 3. Set Up Your Gemini API Key
 
 To allow `reactive-docgen` to interact with the Gemini AI model, you'll need to set up a Gemini API key.
@@ -98,7 +106,7 @@ With the code and API key configured, you can now execute the `sample.rdg` file.
     *   Enter the following command in your terminal and press Enter:
 
         ```bash
-        python src/rdg.py samples/sample.rdg
+        python src/rdg.py sample.rdg
         ```
 
         This will run the `reactive-docgen` program, processing the instructions in the `sample.rdg` file.
