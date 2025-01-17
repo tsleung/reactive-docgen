@@ -11,17 +11,8 @@ Here's a step-by-step guide on how to get `reactive-docgen` up and running on yo
 *   **Detailed Setup and Usage Guide**: For a thorough introduction, or you're unfamiliar with Python, see our [Detailed Setup and Usage Guide](detailed-setup.md).
 *   **Sample Output:** See the [sample output directory](samples/).
 
-### 1. Install Google Generative AI Library
 
-This tool utilizes the `google-generativeai` library. You can install it using `pip`:
-
-```bash
-pip install google-generativeai python-dotenv
-```
-
-The `python-dotenv` library allows you to use the API key using a `.env` file, which is more secure than exposing the API key in your terminal.
-
-### 2. Create a Virtual Environment (Recommended)
+### 1. Create a Virtual Environment (Recommended)
 
 A virtual environment is a way to create isolated Python environments. This avoids conflicts between different projects and keeps your system clean. To create and activate a virtual environment:
 
@@ -32,11 +23,17 @@ source .venv/bin/activate # Activates the virtual environment on macOS/Linux
 .venv\Scripts\activate   # Activates the virtual environment on Windows
 ```
 
+### 2. Install Requirements
+
+Install your python requirements with 
+'''
+pip install -r requirements.txt
+'''
+
 ### 3. Set Up Your Gemini API Key
 
 1.  You will need a Gemini API key. You can get one for free on the [Google AI platform website](https://ai.google.dev/).
-2.  Once you have your key, create a `.env` file in the same directory as your `rdg.py` file.
-3.  Add the following line, replacing `your_api_key_here` with your actual API key:
+2.  Update the .env file with your api key
 
     ```env
     GEMINI_API_KEY="your_api_key_here"
