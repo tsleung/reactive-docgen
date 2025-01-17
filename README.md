@@ -23,7 +23,7 @@ source .venv/bin/activate # Activates the virtual environment on macOS/Linux
 .venv\Scripts\activate   # Activates the virtual environment on Windows
 ```
 
-### 1. Install Requirements
+### 2. Install Requirements
 
 Install your python requirements with 
 '''
@@ -33,8 +33,7 @@ pip install -r requirements.txt
 ### 3. Set Up Your Gemini API Key
 
 1.  You will need a Gemini API key. You can get one for free on the [Google AI platform website](https://ai.google.dev/).
-2.  Once you have your key, create a `.env` file in the same directory as your `rdg.py` file.
-3.  Add the following line, replacing `your_api_key_here` with your actual API key:
+2.  Update the .env file with your api key
 
     ```env
     GEMINI_API_KEY="your_api_key_here"
