@@ -1,6 +1,6 @@
 import sys
 import os
-from rdg import process_rdg_file
+from .parser import process_rdg_file
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print("Usage: rdg.py <rdg_file>", file=sys.stderr)
