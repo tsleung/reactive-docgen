@@ -1,11 +1,9 @@
 import argparse
-import sys, os
+import os
 import logging
-import json
-import datetime
 from ..rdg.functions import gemini_prompt_template 
 
-from .chat_utils import create_chat_context, load_chat_history, save_chat_history, scale_chat_history
+from .chat_utils import create_chat_context, load_chat_history, save_chat_history, unscaled_chat_history
 
 LOG_FORMAT = '%(asctime)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
@@ -27,29 +25,36 @@ def chat_cli():
     if not os.path.exists(rdg_file):
         print(f"Error: RDG file not found at '{rdg_file}'")
     
+    chat_context = create_chat_context(rdg_file)
     print("Chat with your knowledge base. Type 'exit' to end.")
+    
+    chat_history = load_chat_history(rdg_file, session_id)
+    
     while True:
         query = input("You: ")
         if query.lower() == "exit":
             break
         
         context = create_chat_context(rdg_file)
-        
-        logging.info(f"[Context]: {context}")
+        scaled_history = unscaled_chat_history(rdg_file, query, chat_history)
         
         prompt_template = """You are an assistant that answers questions based on the provided context. 
         Use the context to answer the question. If you cannot answer the question using the context, say 'I do not know'.
 
         Context:
         ${context}
+        
+        Past Chat History:
+        ${scaled_history}
 
         Question:
         ${query}
         """
         try:
-            response = gemini_prompt_template(rdg_file, template=prompt_template, context=context, query=query)
+            response = gemini_prompt_template(rdg_file, template=prompt_template, context=context, query=query, scaled_history=scaled_history)
             print(f"Assistant: {response}")
             save_chat_history(rdg_file, query, response, session_id)
+            chat_history.append({"query": query, "response": response})
         except Exception as e:
             logging.error(f"Error during LLM call: {e}")
             print("An error occurred while processing your request.")

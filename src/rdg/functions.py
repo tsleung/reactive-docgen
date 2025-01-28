@@ -60,7 +60,6 @@ def create_file(rdg_file:str, **kwargs) -> str:
 
 def gemini_prompt_template(rdg_file:str, use_filesystem_cache=True, **kwargs) -> str:
   
-  
   if "template" not in kwargs:
       raise RdgParserError("Template must be supplied when using the GEMINIPROMPT")
   template = kwargs.pop("template")
@@ -68,15 +67,17 @@ def gemini_prompt_template(rdg_file:str, use_filesystem_cache=True, **kwargs) ->
   input_data = kwargs
   rendered_template = render_template(template, input_data)
   
+  logging.info(f"Rendered template:\n{rendered_template}")
+
   try:
     cache_key = get_cache_key(rendered_template)
     cached_request, cached_response = load_from_cache(cache_key)
 
     if cached_response:
-        logging.info(f"Loaded from cache (key: {cache_key})")
+        # logging.info(f"Loaded from cache (key: {cache_key})")
         response_text = cached_response
     else:
-        logging.info(f"API Call (key: {cache_key})")
+        # logging.info(f"API Call (key: {cache_key})")
         response_text = memoized_gemini_call(rendered_template)
         if use_filesystem_cache:
             save_to_cache(cache_key, rendered_template, response_text)

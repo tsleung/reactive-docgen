@@ -28,5 +28,4 @@ def extract_output_files_and_commands(rdg_file: str, file_dir: str) -> dict[str,
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
     
-    print(f" {output_files_and_commands}")
     return output_files_and_commands

@@ -45,6 +45,17 @@ def save_chat_history(rdg_file: str, query: str, response: str, session_id: str 
     except Exception as e:
         logging.error(f"Error saving chat history: {e}")
 
+
+def unscaled_chat_history(rdg_file: str, current_query: str, chat_history: list) -> str:
+  history_context = ""
+  
+  for chat_data in chat_history:
+    past_query = chat_data["query"]
+    past_response = chat_data["response"]
+    history_context += f"'{past_query}': {past_response}\n"
+  
+  return history_context
+
 def scale_chat_history(rdg_file: str, current_query: str, chat_history: list) -> str:
     """Scales the importance of past chats based on relevance to the current query."""
     history_context = ""

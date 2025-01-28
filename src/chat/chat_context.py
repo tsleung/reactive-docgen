@@ -1,6 +1,5 @@
 import os
 from ..rdg.file_ops import extract_output_files_and_commands
-import logging
 
 def create_context_from_files(rdg_file: str, output_files_and_commands: dict[str, str]) -> str:
     """
@@ -37,8 +36,6 @@ def create_chat_context_from_rdg(rdg_file: str) -> str:
     """Creates a chat context from an RDG file."""
     file_dir = os.path.dirname(os.path.abspath(rdg_file))
     output_files_and_commands = extract_output_files_and_commands(rdg_file, file_dir)
-    
-    logging.info(f"[output_files_and_commands]: {output_files_and_commands}")
     context = create_context_from_files(rdg_file, output_files_and_commands)
     return context
 
