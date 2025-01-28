@@ -1,9 +1,18 @@
 import os
 from .template import render_template
-from .file_ops import process_input
 from .gemini import memoized_gemini_call, load_from_cache, save_to_cache, get_cache_key
 from typing import Dict, Callable, Any
 import logging
+
+
+def process_input(input_arg, file_dir):
+    file_path = os.path.join(file_dir, input_arg)
+    logging.info(f"Checking for file: {file_path}")
+    if os.path.exists(file_path):
+        with open(file_path, 'r') as f:
+            return f.read().strip()
+    else:
+        return input_arg
 
 class RdgParserError(Exception):
     """Custom exception for RDG parsing errors."""
@@ -48,6 +57,32 @@ def create_file(rdg_file:str, **kwargs) -> str:
     file_content = render_template(template_content, input_data)
     
     return file_content
+
+def gemini_prompt_template(rdg_file:str, use_filesystem_cache=True, **kwargs) -> str:
+  
+  
+  if "template" not in kwargs:
+      raise RdgParserError("Template must be supplied when using the GEMINIPROMPT")
+  template = kwargs.pop("template")
+
+  input_data = kwargs
+  rendered_template = render_template(template, input_data)
+  
+  try:
+    cache_key = get_cache_key(rendered_template)
+    cached_request, cached_response = load_from_cache(cache_key)
+
+    if cached_response:
+        logging.info(f"Loaded from cache (key: {cache_key})")
+        response_text = cached_response
+    else:
+        logging.info(f"API Call (key: {cache_key})")
+        response_text = memoized_gemini_call(rendered_template)
+        if use_filesystem_cache:
+            save_to_cache(cache_key, rendered_template, response_text)
+    return response_text
+  except Exception as e:
+      raise RdgParserError(f"Error during LLM call: {e}")
 
 def gemini_prompt(rdg_file:str, use_filesystem_cache=True, **kwargs) -> str:
     """Sends the file content to an LLM and returns the response using caching."""

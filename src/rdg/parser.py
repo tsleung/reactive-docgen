@@ -3,8 +3,6 @@ import os
 import sys
 from typing import Any
 from .functions import FUNCTION_REGISTRY, RdgParserError
-from .file_ops import process_input
-import logging
 
 def parse_rdg_line(line: str, file_dir: str = ".") -> tuple[str, str, dict[str, Any]]:
     """Parses a single line of the rdg file."""
