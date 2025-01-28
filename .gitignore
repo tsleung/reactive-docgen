@@ -1,3 +1,4 @@
 .gemini_cache
 samples
 .env
+__pycache__
