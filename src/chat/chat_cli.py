@@ -1,7 +1,7 @@
 import argparse
 import os
 import logging
-from ..rdg.functions import gemini_prompt_template 
+from ..rdg.functions import gemini_prompt_template, ollama_prompt
 
 from .chat_utils import create_chat_context, load_chat_history, save_chat_history, unscaled_chat_history
 
@@ -36,24 +36,22 @@ def chat_cli():
             break
         
         context = create_chat_context(rdg_file)
-        scaled_history = unscaled_chat_history(rdg_file, query, chat_history)
+        # scaled_history = unscaled_chat_history(rdg_file, query, chat_history)
         
         prompt_template = """You are an assistant that answers questions based on the provided context. 
         Use the context to answer the question. If you cannot answer the question using the context, say 'I do not know'.
 
         Context:
         ${context}
-        
-        Past Chat History:
-        ${scaled_history}
 
         Question:
         ${query}
         """
         try:
-            response = gemini_prompt_template(rdg_file, template=prompt_template, context=context, query=query, scaled_history=scaled_history)
+            # response = gemini_prompt_template(rdg_file, template=prompt_template, context=context, query=query, scaled_history=scaled_history)
+            response = ollama_prompt(rdg_file, template=prompt_template, context=context, query=query)
             print(f"Assistant: {response}")
-            save_chat_history(rdg_file, query, response, session_id)
+            # save_chat_history(rdg_file, query, response, session_id)
             chat_history.append({"query": query, "response": response})
         except Exception as e:
             logging.error(f"Error during LLM call: {e}")

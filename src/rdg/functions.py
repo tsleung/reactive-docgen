@@ -3,7 +3,7 @@ from .template import render_template
 from .gemini import memoized_gemini_call, load_from_cache, save_to_cache, get_cache_key
 from typing import Dict, Callable, Any
 import logging
-
+from ..llm.ollama import ollama_call
 
 def process_input(input_arg, file_dir):
     file_path = os.path.join(file_dir, input_arg)
@@ -82,6 +82,28 @@ def gemini_prompt_template(rdg_file:str, use_filesystem_cache=True, **kwargs) ->
         if use_filesystem_cache:
             save_to_cache(cache_key, rendered_template, response_text)
     return response_text
+  except Exception as e:
+      raise RdgParserError(f"Error during LLM call: {e}")
+
+def ollama_prompt(rdg_file:str, use_filesystem_cache=True, **kwargs) -> str:
+  """Sends the file content to an LLM and returns the response using caching."""
+    
+  try:
+      input_data = {}
+      for key, value in kwargs.items():
+          # Pass file_dir to process input
+          input_data[key] = process_input(value, os.path.dirname(rdg_file))
+          
+      if "template" in kwargs:
+          template = kwargs.pop("template")
+      else:
+          raise RdgParserError("Template must be supplied when using the GEMINIPROMPT")
+      rendered_template = render_template(template, input_data)
+
+      logging.info(f"Rendered template:\n{rendered_template}")
+
+      response_text = ollama_call(rendered_template)
+      return response_text
   except Exception as e:
       raise RdgParserError(f"Error during LLM call: {e}")
 
