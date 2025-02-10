@@ -1,55 +1,74 @@
+
 # reactive-docgen: Reactively Generate Docs
 
-`reactive-docgen` is a simple tool that allows you to generate text files by processing input files using a custom formula language, all driven by a simple text file called an `rdg` file. Think of it like a spreadsheet where cells contain formulas that can transform data – but for files instead of numbers. With `reactive-docgen`, you can generate a wide range of creative outputs, including documents, stories, game ideas, or even simulate workflows by adopting different advisory personas such as an investor, designer, or software engineer.
+`reactive-docgen` is a tool that generates text files by processing input files using a custom formula language defined in an `rdg` file.  It's like a spreadsheet for files, where formulas transform data to create documents, stories, or simulate workflows.
 
-This tool uses Gemini, an LLM (Large Language Model), enabling you to perform tasks like text generation, translation, and a variety of text manipulations with ease. You can also extend it with your custom formulas for specific use cases. The unique ability of `reactive-docgen` is its capability to chain changes of texts, allowing the output of one formula to feed into the input of another formula, which allows for novel types of reactive behavior that can't be achieved by traditional LLM pipelines. Importantly, `reactive-docgen` focuses on **one-shot prompting** to LLMs, meaning each prompt to the LLM is independent and does not rely on previous interactions. This makes it straightforward to manage and reason about the output.
+This tool uses Large Language Models (LLMs) like Gemini and Ollama, enabling text generation, translation, and manipulation.  Extend it with custom formulas for specific use cases. `reactive-docgen` chains text changes, allowing the output of one formula to feed into another, creating reactive behavior. It focuses on **one-shot prompting** to LLMs, making output management straightforward.
 
 ## Getting Started
 
-Here's a step-by-step guide on how to get `reactive-docgen` up and running on your machine:
-
-*   **Detailed Setup and Usage Guide**: For a thorough introduction, or you're unfamiliar with Python, see our [Detailed Setup and Usage Guide](detailed-setup.md).
+*   **Detailed Setup and Usage Guide**: For a thorough introduction, or if you're new to Python, see our [Detailed Setup and Usage Guide](detailed-setup.md).
 *   **Sample Output:** See the [sample output directory](samples/).
 
+### 1. Prerequisites
 
-### 1. Create a Virtual Environment (Recommended)
+*   **Python 3.7+:**  Make sure you have Python 3.7 or later installed.
+*   **pip:** Python's package installer.
+*   **Git:** For cloning the repository.
 
-A virtual environment is a way to create isolated Python environments. This avoids conflicts between different projects and keeps your system clean. To create and activate a virtual environment:
+### 2. Clone the Repository
 
 ```bash
-python3 -m venv .venv    # Creates a virtual environment called '.venv'
-source .venv/bin/activate # Activates the virtual environment on macOS/Linux
-# or
-.venv\Scripts\activate   # Activates the virtual environment on Windows
+git clone https://github.com/tsleung/reactive-docgen
+cd reactive-docgen
 ```
 
-### 2. Install Requirements
+### 3. Create a Virtual Environment (Recommended)
 
-Install your python requirements with 
-'''
+```bash
+python3 -m venv .venv
+source .venv/bin/activate  # macOS/Linux
+# .venv\Scripts\activate  # Windows
+```
+
+### 4. Install Dependencies
+
+```bash
 pip install -r requirements.txt
-'''
+```
 
-### 3. Set Up Your Gemini API Key
+### 5. Configure Your LLM API Key
 
-1.  You will need a Gemini API key. You can get one for free on the [Google AI platform website](https://ai.google.dev/).
-2.  Update the .env file with your api key
+#### Gemini API Key
+
+1.  Get a Gemini API key for free from the [Google AI platform website](https://ai.google.dev/).
+2.  Create a `.env` file in the root directory and add your API key:
 
     ```env
     GEMINI_API_KEY="your_api_key_here"
     ```
 
-### 4. Understanding rdg Files
+#### Ollama (Optional)
 
-`reactive-docgen` uses a simple text file format called an `rdg` file. Each line in an `rdg` file represents a rule that describes how to process an input and create an output. Here's the basic format of each rule:
+Ollama is a free, open-source, locally-run LLM. To use Ollama, you must first install it from [https://ollama.com/](https://ollama.com/). You will also need to pull a model, such as `llama2`.
+
+```bash
+ollama pull llama2
+```
+
+No API key is required for Ollama.
+
+### 6. Understanding rdg Files
+
+`rdg` files define the rules for processing input and creating output. Each line represents a rule:
 
 ```
 <output_file>=<formula>(namedArgument1="value", namedArgument2="value")
 ```
 
--   **`<output_file>`**: The name of the file that will be created or overwritten with the results of the formula. The file will be created in the same directory as the `rdg` file, or within the directory specified in the output path. If a directory is specified in the output file path, it will be created automatically.
--   **`<formula>`**: The name of the function to apply. Examples of formulas include `UPPERCASE`, `GEMINIPROMPT`, `CREATEFILE`, and `DIRECTORYTOMARKDOWN`.
--   **`(...)`**: Inside the parentheses, we define **named arguments** for the formula. Each argument is defined as `argument_name="value"`.
+-   **`<output_file>`**: The name of the file to create or overwrite.  The file will be created in the same directory as the `rdg` file, or within the directory specified in the output path. If a directory is specified in the output file path, it will be created automatically.
+-   **`<formula>`**: The function to apply (e.g., `UPPERCASE`, `GEMINIPROMPT`, `CREATEFILE`, `DIRECTORYTOMARKDOWN`, `OLLAMAPROMPT`).
+-   **`(...)`**: Named arguments for the formula, defined as `argument_name="value"`.
 -   **named arguments**: arguments for the formula, these are key-value pairs that can take either a string or the path of a file. If a string is used, it must be encapsulated with quotes (either single or double quotes). File paths don't need any quotes.
 
 **Example `sample.rdg` File:**
@@ -67,88 +86,73 @@ samples/story-italian.md=GEMINIPROMPT(template="Extract only the translated text
 samples/templates/pirate-reader.md=CREATEFILE(content="Read the story with a pirate accent. Do not include comments. This is the story: $input")
 samples/story-pirate.md=GEMINIPROMPTFILE(template_file="samples/templates/pirate-reader.md", input="samples/final.md")
 samples/all-notes.md=DIRECTORYTOMARKDOWN(directory="samples/workspace")
+samples/single-file.md=RDGTOFILE(output_file="all_rdg_output.md")
 ```
-
-In the above example:
-
-*   `CREATEFILE` creates a file named `samples/hello.md` with the content `Ooo, Hello world?!`.
-*   `UPPERCASE` converts the content of `samples/hello.md` into uppercase, and outputs it to `samples/notes.md`.
-*   `GEMINIPROMPT` uses the Gemini LLM to create a story from the content of the `samples/workspace/notes.md` file, then gets feedback, does a revision including comments, and creates a final version without comments.
-*   The `GEMINIPROMPT` formula is also used to generate a pitch of the final version.
-*   The `GEMINIPROMPT` formula is also used to generate an italian version of the final story, including comments, and then extracts the translated version without comments.
-*  `GEMINIPROMPTFILE` loads a template file `samples/templates/pirate-reader.md`, and generates a file `samples/story-pirate.md` based on that template with the content of `samples/final.md` as input.
-*   `DIRECTORYTOMARKDOWN` takes all the files inside the `samples/workspace` directory, and creates a markdown file with their paths and contents inside a code block.
 
 **Available Formulas:**
 
-*   `UPPERCASE`: Converts the content of a file to uppercase. It takes one keyword argument `file` (path to the input file).
-*   `GEMINIPROMPT`: Uses the Gemini LLM to process text. Takes a keyword argument `template` (a string containing the template to use on the LLM, such as `Summarize the following: $input`, where `$input` is replaced by the content of the input file), and several file inputs (or strings) as keyword arguments.
-*   `GEMINIPROMPTFILE`: Same as GEMINIPROMPT, but takes the template from the specified template file path using the `template_file` argument.
+*   `UPPERCASE`: Converts the content of a file to uppercase.  Takes `file` (path to the input file).
+*   `GEMINIPROMPT`: Uses the Gemini LLM to process text. Takes `template` (a string containing the template to use on the LLM, such as `Summarize the following: $input`, where `$input` is replaced by the content of the input file), and several file inputs (or strings) as keyword arguments.
+*   `GEMINIPROMPTFILE`: Same as `GEMINIPROMPT`, but takes the template from the specified template file path using the `template_file` argument.
+*   `OLLAMAPROMPT`: Uses the Ollama LLM to process text.  Takes a `template` argument similar to `GEMINIPROMPT`.
 *   `CREATEFILE`: Creates a file with the given content. Takes a `content` argument with the string that will be written in the output file.
-*   `DIRECTORYTOMARKDOWN`: Takes a `directory` path as an argument, and outputs the paths and content of all files (recursively) inside that directory. Skips binary files, and outputs an error message instead.
+*   `DIRECTORYTOMARKDOWN`: Takes a `directory` path as an argument and outputs the paths and content of all files (recursively) inside that directory in markdown format. Skips binary files and outputs an error message instead.
+*   `FILESTOMARKDOWN`: Takes a `files` argument, which is a comma-separated list of file paths. Outputs the paths and content of the specified files in markdown format.
+*   `SUMMARIZE`: Generates a summary of a file using the LLM. Takes a `file` argument (path to the input file) and an optional `summary_type` argument (either "short" or "long").
+*   `RDGTOFILE`: Converts all the output files of an RDG file into a single markdown file. Takes an `output_file` argument specifying the name of the output markdown file.
 
-### 5. Running the Script
+### 7. Running the Script
 
 To process an `rdg` file, use the following command, replacing `sample.rdg` with the path to your `rdg` file:
 
 ```bash
-python src/rdg.py sample.rdg
+python src/rdg/rdg_cli.py sample.rdg
 ```
-
-If you are in the root directory, and have a `sample.rdg` file located inside the `samples` folder, then you can use the above command directly. This will automatically generate the `samples` directory, and the output files inside it. If you wish to run the script on another rdg file, simply change the path to your `rdg` file in the command above.
 
 This command will parse your `rdg` file, execute the formulas, and create output files.
 
-### 6. Script Watcher (Optional)
+### 8. Script Watcher (Optional)
 
-For scenarios where you want to automatically re-generate text whenever a file changes, you can use the `script-watcher.py`. This script watches a directory and executes a command (like running your `rdg.py` script) when changes are detected.
+To automatically re-generate text whenever a file changes, use `script-watcher.py`.
 
-1.  **Create a Shell Script (`sample.rdg.sh`)**: This script will contain the command to run, such as running `rdg.py` with your rdg file. Create a `sample.rdg.sh` file with the following content (or whatever name you want for your script):
+1.  **Create a Shell Script (`sample.rdg.sh`)**:
 
     ```bash
     #!/bin/bash
-    python src/rdg.py sample.rdg
+    python src/rdg/rdg_cli.py sample.rdg
     ```
 
-    **Important:** Make sure that this file has execute permissions. Run `chmod +x sample.rdg.sh` to give the script execute permissions. You can run this command directly on the terminal, or copy paste this into a terminal:
+    Make the script executable:
 
     ```bash
     chmod +x sample.rdg.sh
     ```
 
-    Note that this also works with any other command. For instance, if you wish to just copy the files inside the directory `samples` to a folder called `samples-copy` whenever you modify something in the `samples` directory, then you can create a command as:
-
-    ```bash
-    cp -r samples samples-copy
-    ```
-
-    This is just an example, and any other command can be used.
-
-2.  **Run the Script Watcher:** To use the script watcher, run:
+2.  **Run the Script Watcher:**
 
     ```bash
     python src/script-watcher.py . ./sample.rdg.sh
     ```
 
-    This command watches the current directory (`.`) and runs the `./sample.rdg.sh` command whenever any files inside the current directory (or any of its subdirectories) are changed.
+    This watches the current directory (`.`) and runs `./sample.rdg.sh` when files change.
 
-    **Explanation of the command:**
+### 9. Chatting with your RDG files
 
-    *   **`python src/script-watcher.py`**: This is the command that will execute the `script-watcher.py` file.
-    *   **`.`**: This specifies the directory to watch for changes.
-    *   **`./sample.rdg.sh`**: This is the shell command to execute when changes are detected.
+To chat with your RDG files, use the `chat_cli.py` script.
 
-**Note:**
+```bash
+python src/chat/chat_cli.py sample.rdg
+```
 
-*   The script watcher will re-run the command every time the files inside the watched directory have been modified.
-*   Make sure the `.rdg` file used in the shell script exists.
-*   Remember that if you specify the rdg file as `/path/to/your/rdg` then you must also specify the path where the file is located in your shell script.
+You can optionally specify a session ID to load chat history from a previous session.
+
+```bash
+python src/chat/chat_cli.py sample.rdg --session my_session
+```
 
 ### Example Workflow
 
-Here's how you might use `reactive-docgen` in a real scenario:
-
-1.  **Create a `docs/docgen.rdg` file:** and add the following content:
+1.  **Create a `docs/docgen.rdg` file:**
 
     ```
     docs/input.md=CREATEFILE(content="# My Awesome Text\nThis is some content.\nI want to transform it.")
@@ -161,50 +165,26 @@ Here's how you might use `reactive-docgen` in a real scenario:
 2.  **Run the script**:
 
     ```bash
-    python src/rdg.py docs/docgen.rdg
+    python src/rdg/rdg_cli.py docs/docgen.rdg
     ```
-
-3.  After running the script, new output files will be created inside the `docs` folder. Each of the output files (`docs/input.md`, `docs/output.md`, `docs/summary.md`, `docs/italian.md` and `docs/all_texts.md`) will contain the corresponding result of each formula.
 
 ### Notes on File Paths
 
-*   When defining the output file, the tool will create the directory of the output file if it doesn't exist. For example, if `output/folder/file.md` is passed as an output, and the folder `output/folder` doesn't exist, it will be created.
-*   All file paths are resolved relative to the folder where the `rdg` file is located.
-*   If a value in the `rdg` is passed with quotes (single or double), then it's treated as a string. Otherwise, the file path is resolved based on the rdg file location.
+*   The tool creates the output file's directory if it doesn't exist.
+*   File paths are relative to the `rdg` file's location.
+*   Values in quotes (single or double) are treated as strings; otherwise, they are file paths.
 
 ### Troubleshooting
 
-*   **`ModuleNotFoundError: No module named 'dotenv'`:** Make sure that you have installed the required libraries: `pip install google-generativeai python-dotenv`.
-*   **`GEMINI_API_KEY` not set:** Make sure to create the `.env` file and set the `GEMINI_API_KEY` variable.
-*   **`RdgParserError: Template must be supplied when using the GEMINIPROMPT`**: Make sure that the template argument is included when calling the `GEMINIPROMPT` formula. Example: `GEMINIPROMPT(template="your template here", input="input.md")`
-*   **Other issues:** Make sure the input files exist at the correct locations, and that you have internet connectivity if using the `GEMINIPROMPT` formula. Check the console for any errors or warning messages.
+*   **`ModuleNotFoundError`:** Install missing dependencies using `pip install -r requirements.txt`.
+*   **`GEMINI_API_KEY` not set:** Create a `.env` file and set the `GEMINI_API_KEY` variable.
+*   **`RdgParserError: Template must be supplied when using the GEMINIPROMPT`**: Include the `template` argument when calling `GEMINIPROMPT`.
+*   **Permissions Issue:** Use `chmod +x <script_name>.sh` to grant execute permissions to shell scripts.
 
-### Permissions Issue for Scripts
+### Gemini Model
 
-The "permission denied" error means that the script `sample.rdg.sh` doesn't have execute permission. You need to make it executable using the `chmod` command:
-
-```
-chmod +x sample.rdg.sh
-```
-
-Here's how you can grant execute permission recursively:
-
-```
-chmod -R +x /path/to/your/directory
-```
-
-A more targeted and safer approach is to grant execute permission only to files ending in `.sh` (or whatever extension you use for your shell scripts):
-
-```
-find /path/to/your/directory -name "*.sh" -exec chmod +x {} \;
-```
-
-If you have scripts using different interpreters (e.g., Bash, Python, etc.), you can use `find` with more specific criteria:
-
-```
-find /path/to/your/directory \( -name "*.sh" -o -name "*.py" \) -exec chmod +x {} \;
-```
+The tool is currently configured to use the `gemini-2.0-flash-exp` model. This can be changed in `src/rdg/gemini.py`.
 
 ## License
 
-This project is licensed under the **GNU General Public License v3.0** (GPLv3). This license is chosen to ensure that the tool and any derivative works remain open-source and that its users are guaranteed certain freedoms.
+This project is licensed under the **GNU General Public License v3.0** (GPLv3).

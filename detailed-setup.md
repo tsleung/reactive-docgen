@@ -1,3 +1,4 @@
+
 # Detailed Setup and Usage Guide for reactive-docgen
 
 Welcome to `reactive-docgen`! This tool empowers you to generate text files by processing input files according to a set of instructions you define. It offers a straightforward way to automate text transformations and content generation.
@@ -8,7 +9,7 @@ Welcome to `reactive-docgen`! This tool empowers you to generate text files by p
 
 ## Before You Begin
 
-**Important Note:** To run `reactive-docgen`, you need to have Python and `pip` (Python package installer) installed on your computer. Python is a programming language, and `pip` is a tool that helps you install additional libraries (like `google-generativeai`) which the tool needs. This guide will include some basic instructions; however, if you are not using macOS and are having issues, you may need to search online for specific instructions on how to install Python for your operating system. You will also need a Google account with access to the Gemini AI model and a Gemini API key, which you can acquire for free.
+**Important Note:** To run `reactive-docgen`, you need to have Python and `pip` (Python package installer) installed on your computer. Python is a programming language, and `pip` is a tool that helps you install additional libraries (like `google-generativeai`) which the tool needs. This guide will include some basic instructions; however, if you are not using macOS and are having issues, you may need to search online for specific instructions on how to install Python for your operating system. You will also need a Google account with access to the Gemini AI model and a Gemini API key, which you can acquire for free. Alternatively, you can use Ollama, a free and open-source tool for running LLMs locally.
 
 ## Step-by-Step Guide
 
@@ -35,7 +36,7 @@ This step involves downloading the files so you can use the tool. This process i
 *   **Cloning Options:** You have a few options for this step:
 
     *   **Using GitHub Desktop:**
-        *   Navigate to the [reactive-docgen repository](https://github.com/your-repo-link).
+        *   Navigate to the [reactive-docgen repository](https://github.com/tsleung/reactive-docgen).
         *   Click the green "Code" button and choose "Open with GitHub Desktop".
         *   If you don't have GitHub Desktop, you'll be prompted to install it. Follow the instructions to download it.
         *   After cloning, a copy of the code will be on your computer in the specified location.
@@ -63,7 +64,7 @@ This step involves downloading the files so you can use the tool. This process i
     ```
  *   **For other operating systems**: you may have to search for platform specific instructions for setting up a virtual environment.
 
-This tool utilizes the `google-generativeai` library. You can install it using `pip`:
+This tool utilizes the `google-generativeai` and `python-dotenv` libraries. You can install it using `pip`:
 
 ```bash
 pip install google-generativeai python-dotenv
@@ -71,9 +72,11 @@ pip install google-generativeai python-dotenv
 
 The `python-dotenv` library allows you to use the API key using a `.env` file, which is more secure than exposing the API key in your terminal.
 
-### 3. Set Up Your Gemini API Key
+### 3. Set Up Your Gemini API Key **OR** Use Ollama
 
-To allow `reactive-docgen` to interact with the Gemini AI model, you'll need to set up a Gemini API key.
+To allow `reactive-docgen` to interact with an LLM, you can either use the Gemini AI model via an API key, or use Ollama, a free and open-source tool to run LLMs locally.
+
+#### Option 1: Gemini API Key
 
 1.  Go to the [Google AI platform website](https://ai.google.dev/) and sign in with your Google account.
 2.  Follow the instructions to get a Gemini API key. This is provided free of charge.
@@ -89,9 +92,15 @@ To allow `reactive-docgen` to interact with the Gemini AI model, you'll need to 
     *   Save the file with the name `.env` in the same folder where you downloaded the `reactive-docgen` code.
         *   Ensure that the file is saved as "All Files" to avoid accidentally saving it as a `.txt` file.
 
+#### Option 2: Using Ollama (Local LLM)
+
+1.  **Install Ollama:** Download and install Ollama from [https://ollama.com/](https://ollama.com/). Follow the installation instructions for your operating system.
+2.  **Download a Model:** Open your terminal and run `ollama pull mistralai/Mistral-7B-Instruct-v0.2` to download the Mistral 7B Instruct model. You can choose other models available on Ollama's website.
+3.  **No API Key Needed:** When using Ollama, you do not need to set up a Gemini API key or create a `.env` file. The `reactive-docgen` code will automatically detect and use Ollama if it's running.
+
 ### 4. Run the `sample.rdg` File
 
-With the code and API key configured, you can now execute the `sample.rdg` file.
+With the code and API key (or Ollama) configured, you can now execute the `sample.rdg` file.
 
 1.  **Open a Terminal Window (macOS):** Open your **Terminal** (found in Applications > Utilities).
       *    **For other operating systems**: Use the terminal application available in your OS.
@@ -113,11 +122,11 @@ With the code and API key configured, you can now execute the `sample.rdg` file.
 
 4.  **View Output Files:**
 
-    *   After a brief moment, new files will appear in the `samples` folder within the `reactive-docgen` folder. These files are the results of processing your input using the Gemini AI model, based on the `sample.rdg` file. You may use a code editor such as Visual Studio Code (VS Code) to view your output.
+    *   After a brief moment, new files will appear in the `samples` folder within the `reactive-docgen` folder. These files are the results of processing your input using the LLM, based on the `sample.rdg` file. You may use a code editor such as Visual Studio Code (VS Code) to view your output.
 
 ## What to Expect
 
-When you run `samples/sample.rdg`, it will generate several new files within the `samples` folder, including subfolders such as `samples/workspace`. These files are the results of processing your input using the Gemini AI model, based on the `sample.rdg` file.
+When you run `samples/sample.rdg`, it will generate several new files within the `samples` folder, including subfolders such as `samples/workspace`. These files are the results of processing your input using the LLM, based on the `sample.rdg` file.
 
 Specifically, the following files will be generated:
 
@@ -135,6 +144,15 @@ Specifically, the following files will be generated:
 -   `samples/all-notes.md`: A file containing all the files inside the directory `samples/workspace` in a markdown format.
 
 You may use a code editor such as Visual Studio Code (VS Code) to view your output.
+
+## Troubleshooting
+
+*   **`ModuleNotFoundError: No module named 'dotenv'`:** Make sure that you have installed the required libraries: `pip install google-generativeai python-dotenv`.
+*   **`GEMINI_API_KEY` not set:** Make sure to create the `.env` file and set the `GEMINI_API_KEY` variable if you are using the Gemini API.
+*   **Ollama not working:** Ensure Ollama is installed and running, and that you have downloaded a model using `ollama pull <model_name>`.
+*   **`RdgParserError: Template must be supplied when using the GEMINIPROMPT`**: Make sure that the template argument is included when calling the `GEMINIPROMPT` formula. Example: `GEMINIPROMPT(template="your template here", input="input.md")`
+*   **`RdgParserError: Template must be supplied when using the OLLAMAPROMPT`**: Make sure that the template argument is included when calling the `OLLAMAPROMPT` formula. Example: `OLLAMAPROMPT(template="your template here", input="input.md")`
+*   **Other issues:** Make sure the input files exist at the correct locations, and that you have internet connectivity if using the `GEMINIPROMPT` formula. Check the console for any errors or warning messages.
 
 ## Next Steps
 
