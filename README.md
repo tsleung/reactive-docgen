@@ -136,6 +136,12 @@ To automatically re-generate text whenever a file changes, use `script-watcher.p
 
     This watches the current directory (`.`) and runs `./sample.rdg.sh` when files change.
 
+    An alternative .sh file
+    ```
+    #!/bin/bash
+    python -m src.rdg.rdg_cli "$(dirname "$0")/.default.rdg"
+    ```
+
 ### 9. Chatting with your RDG files
 
 To chat with your RDG files, use the `chat_cli.py` script.
