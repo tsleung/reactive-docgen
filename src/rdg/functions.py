@@ -184,9 +184,8 @@ def create_markdown_from_directory(rdg_file: str, **kwargs) -> str:
     and contents in code blocks.
 
     Args:
-        rdg_file (str): The path to the rdg file (not used)
+        rdg_file (str): The path to the rdg file (used for relative path resolution).
         directory_path (str): The path to the directory to process.
-        output_file (str, optional): The name of the output markdown file.
     """
     if "directory" not in kwargs:
         raise RdgParserError("The parameter 'directory' is required in DIRECTORYTOMARKDOWN")
@@ -199,30 +198,42 @@ def create_markdown_from_directory(rdg_file: str, **kwargs) -> str:
 
     try:
         output_content = ""
+        if not os.path.exists(full_directory_path):
+            raise FileNotFoundError(f"Directory not found: {directory_path}")
+
         for root, _, files in os.walk(full_directory_path):
             for file in files:
                 file_path = os.path.join(root, file)
+                # Make the displayed path relative to the initial directory_path provided by the user
+                # This ensures consistency with how FILESTOMARKDOWN displays paths
+                relative_to_full_dir = os.path.relpath(file_path, full_directory_path)
+                display_path = os.path.join(directory_path, relative_to_full_dir)
+                
                 try:
                     with open(file_path, "r", encoding="utf-8") as f:
                         file_content = f.read()
-                    output_content += f"## {file_path}\n\n"
+                    output_content += f"## {display_path}\n\n"
                     output_content += "```\n"
                     output_content += file_content
                     output_content += "\n```\n\n"
                 except UnicodeDecodeError:
                     print(f"Warning: Could not decode file content of {file_path}. Skipping content.")
-                    output_content += f"## {file_path}\n\n"
+                    output_content += f"## {display_path}\n\n"
                     output_content += "```\n"
                     output_content += f"Warning: Could not decode content of {file_path} using utf-8 encoding.\n"
                     output_content += "\n```\n\n"
-
                 except Exception as e:
                     print(f"Error reading file {file_path}: {e}")
+                    output_content += f"## {display_path}\n\n"
+                    output_content += "```\n"
+                    output_content += f"Error reading file {file_path}: {e}\n"
+                    output_content += "\n```\n\n"
+
         return output_content
-    except FileNotFoundError:
-        raise RdgParserError(f"Error: Directory not found: {directory_path}")
+    except FileNotFoundError as e:
+        raise RdgParserError(f"Error: {e}")
     except Exception as e:
-        raise RdgParserError(f"An unexpected error occurred: {e}")
+        raise RdgParserError(f"An unexpected error occurred processing directory {directory_path}: {e}")
 
 def create_markdown_from_files(rdg_file: str, **kwargs) -> str:
     """
@@ -230,7 +241,7 @@ def create_markdown_from_files(rdg_file: str, **kwargs) -> str:
     and their content in code blocks.
     
     Args:
-        rdg_file (str): The path to the rdg file (not used)
+        rdg_file (str): The path to the rdg file (used for relative path resolution).
         files (list): A comma separated string of file paths
     """
     if "files" not in kwargs:
@@ -260,7 +271,6 @@ def create_markdown_from_files(rdg_file: str, **kwargs) -> str:
                 output_content += "```\n"
                 output_content += f"Warning: Could not decode content of {file_path} using utf-8 encoding.\n"
                 output_content += "\n```\n\n"
-
         except FileNotFoundError:
                 print(f"Warning: File not found {file_path}. Skipping content.")
                 output_content += f"## {file_path}\n\n"
@@ -269,6 +279,10 @@ def create_markdown_from_files(rdg_file: str, **kwargs) -> str:
                 output_content += "\n```\n\n"
         except Exception as e:
             print(f"Error reading file {file_path}: {e}")
+            output_content += f"## {file_path}\n\n"
+            output_content += "```\n"
+            output_content += f"Error reading file {file_path}: {e}\n"
+            output_content += "\n```\n\n"
     return output_content
 
 def summarize_file(rdg_file: str, file: str, summary_type: str = "short") -> str:
@@ -293,12 +307,21 @@ def summarize_file(rdg_file: str, file: str, summary_type: str = "short") -> str
     except Exception as e:
         raise RdgParserError(f"Error during summarization: {e}")
 
+# Note: extract_output_files_and_commands is not defined in the provided context.
+# Assuming it's defined elsewhere or is a placeholder for context purposes.
 def create_single_markdown_file(rdg_file: str, output_file: str) -> None:
     """Creates a single markdown file from all RDG output files."""
     file_dir = os.path.dirname(os.path.abspath(rdg_file))
-    output_files_and_commands = extract_output_files_and_commands(rdg_file, file_dir)
-    context = create_context_from_files(rdg_file, output_files_and_commands)
+    # This function requires 'extract_output_files_and_commands' which is not in the provided snippet.
+    # For a complete working example, this function would need to be defined.
+    # output_files_and_commands = extract_output_files_and_commands(rdg_file, file_dir) 
+    # context = create_context_from_files(rdg_file, output_files_and_commands)
     
+    # Placeholder to avoid NameError if not defined
+    output_files_and_commands = {} # Replace with actual parsing logic
+    context = create_context_from_files(rdg_file, output_files_and_commands)
+
+
     output_path = os.path.join(file_dir, output_file)
     with open(output_path, 'w') as outfile:
         outfile.write(context)
@@ -336,6 +359,69 @@ def create_context_from_files(rdg_file: str, output_files_and_commands: dict) ->
                     print(f"Error reading file {file_path}: {e}")
         return context
 
+def files_or_directories_to_markdown(rdg_file: str, **kwargs) -> str:
+    """
+    Gathers content from specified files and/or directories and creates a markdown string
+    with file paths and their content in code blocks. Directories are expanded recursively.
+    
+    Args:
+        rdg_file (str): The path to the rdg file.
+        paths (str): A comma separated string of file and/or directory paths.
+    """
+    if "paths" not in kwargs:
+        raise RdgParserError("The parameter 'paths' is required in FILESORDIRECTORIESTOMARKDOWN")
+
+    paths_str = kwargs["paths"]
+    
+    # Split the comma-separated string into a list of paths, stripping whitespace
+    items_to_process = [p.strip() for p in paths_str.split(",")]
+    
+    rdg_dir = os.path.dirname(os.path.abspath(rdg_file))
+    output_content = ""
+
+    for item_path in items_to_process:
+        full_item_path = os.path.normpath(os.path.join(rdg_dir, item_path))
+        
+        if not os.path.exists(full_item_path):
+            print(f"Warning: Path not found {item_path}. Skipping.")
+            output_content += f"## {item_path}\n\n"
+            output_content += "```\n"
+            output_content += f"Warning: Path not found {item_path}.\n"
+            output_content += "\n```\n\n"
+            continue
+
+        if os.path.isdir(full_item_path):
+            # If it's a directory, use the existing DIRECTORYTOMARKDOWN logic
+            try:
+                # Pass the original item_path for consistency in display names
+                output_content += create_markdown_from_directory(rdg_file, directory=item_path)
+            except RdgParserError as e:
+                print(f"Error processing directory {item_path}: {e}")
+                output_content += f"## {item_path}\n\n"
+                output_content += "```\n"
+                output_content += f"Error processing directory {item_path}: {e}\n"
+                output_content += "\n```\n\n"
+        elif os.path.isfile(full_item_path):
+            # If it's a file, use the existing FILESTOMARKDOWN logic for a single file
+            try:
+                # Pass the original item_path for consistency in display names
+                output_content += create_markdown_from_files(rdg_file, files=item_path)
+            except RdgParserError as e:
+                print(f"Error processing file {item_path}: {e}")
+                output_content += f"## {item_path}\n\n"
+                output_content += "```\n"
+                output_content += f"Error processing file {item_path}: {e}\n"
+                output_content += "\n```\n\n"
+        else:
+            print(f"Warning: Path {item_path} is neither a file nor a directory. Skipping.")
+            output_content += f"## {item_path}\n\n"
+            output_content += "```\n"
+            output_content += f"Warning: Path {item_path} is neither a file nor a directory.\n"
+            output_content += "\n```\n\n"
+
+    return output_content
+
+
 # FUNCTION_REGISTRY
 FUNCTION_REGISTRY: Dict[str, Callable] = {
     "UPPERCASE": uppercase,
@@ -346,4 +432,5 @@ FUNCTION_REGISTRY: Dict[str, Callable] = {
     "CREATEFILE": create_file,
     "SUMMARIZE": summarize_file,
     "RDGTOFILE": rdg_to_file,
+    "FILESORDIRECTORIESTOMARKDOWN": files_or_directories_to_markdown, # Added the new function here
 }

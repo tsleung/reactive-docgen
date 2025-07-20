@@ -14,13 +14,14 @@ if api_key:
         "temperature": 0.667,
         "top_p": 0.6,
         "top_k": 20,
-        "max_output_tokens": 8192,
+        # "max_output_tokens": 64192,
         "response_mime_type": "text/plain",
         }
         model = genai.GenerativeModel(
             # model_name="gemini-1.5-pro",
             # model_name="gemini-1.5-flash",
-            model_name="gemini-2.0-flash-exp",
+            model_name="gemini-2.5-flash",
+            # model_name="gemini-2.5-pro",
             generation_config=generation_config,
         )
         logging.info("Gemini API configured successfully.")
