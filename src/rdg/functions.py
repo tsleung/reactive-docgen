@@ -421,6 +421,55 @@ def files_or_directories_to_markdown(rdg_file: str, **kwargs) -> str:
 
     return output_content
 
+def list_paths(rdg_file: str, **kwargs) -> str:
+    """
+    Lists all file and directory paths recursively within specified directories,
+    or just the path itself if it's a file.
+    
+    Args:
+        rdg_file (str): The path to the rdg file (used for relative path resolution).
+        paths (str): A comma separated string of file and/or directory paths.
+    """
+    if "paths" not in kwargs:
+        raise RdgParserError("The parameter 'paths' is required in LISTPATHS")
+
+    paths_str = kwargs["paths"]
+    
+    # Split the comma-separated string into a list of paths, stripping whitespace
+    items_to_process = [p.strip() for p in paths_str.split(",")]
+    
+    rdg_dir = os.path.dirname(os.path.abspath(rdg_file))
+    listed_paths = []
+
+    for item_path in items_to_process:
+        full_item_path = os.path.normpath(os.path.join(rdg_dir, item_path))
+        
+        if not os.path.exists(full_item_path):
+            print(f"Warning: Path not found: {item_path}")
+            continue
+
+        if os.path.isdir(full_item_path):
+            # Recursively list all files and directories within this directory
+            for root, dirs, files in os.walk(full_item_path):
+                # Add directories first
+                for d in dirs:
+                    # Make the displayed path relative to the initial item_path provided by the user
+                    relative_to_full_dir = os.path.relpath(os.path.join(root, d), full_item_path)
+                    display_path = os.path.normpath(os.path.join(item_path, relative_to_full_dir))
+                    listed_paths.append(display_path)
+                # Then add files
+                for f in files:
+                    relative_to_full_dir = os.path.relpath(os.path.join(root, f), full_item_path)
+                    display_path = os.path.normpath(os.path.join(item_path, relative_to_full_dir))
+                    listed_paths.append(display_path)
+        elif os.path.isfile(full_item_path):
+            # If it's a file, just add its original path
+            listed_paths.append(item_path)
+        else:
+            print(f"Warning: Path {item_path} is neither a file nor a directory.")
+            
+    return "\n".join(listed_paths)
+
 
 # FUNCTION_REGISTRY
 FUNCTION_REGISTRY: Dict[str, Callable] = {
@@ -432,5 +481,6 @@ FUNCTION_REGISTRY: Dict[str, Callable] = {
     "CREATEFILE": create_file,
     "SUMMARIZE": summarize_file,
     "RDGTOFILE": rdg_to_file,
-    "FILESORDIRECTORIESTOMARKDOWN": files_or_directories_to_markdown, # Added the new function here
+    "FILESORDIRECTORIESTOMARKDOWN": files_or_directories_to_markdown,
+    "LISTPATHS": list_paths, # Added the new function here
 }
