@@ -482,5 +482,5 @@ FUNCTION_REGISTRY: Dict[str, Callable] = {
     "SUMMARIZE": summarize_file,
     "RDGTOFILE": rdg_to_file,
     "FILESORDIRECTORIESTOMARKDOWN": files_or_directories_to_markdown,
-    "LISTPATHS": list_paths, # Added the new function here
+    "LISTPATHS": list_paths,
 }
