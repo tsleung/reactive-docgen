@@ -106,7 +106,7 @@ samples/single-file.md=RDGTOFILE(output_file="all_rdg_output.md")
 To process an `rdg` file, use the following command, replacing `sample.rdg` with the path to your `rdg` file:
 
 ```bash
-python src/rdg/rdg_cli.py sample.rdg
+python -m src.rdg.rdg_cli sample.rdg
 ```
 
 This command will parse your `rdg` file, execute the formulas, and create output files.
@@ -147,14 +147,30 @@ To automatically re-generate text whenever a file changes, use `script-watcher.p
 To chat with your RDG files, use the `chat_cli.py` script.
 
 ```bash
-python src/chat/chat_cli.py sample.rdg
+python -m src.chat.chat_cli sample.rdg
 ```
 
 You can optionally specify a session ID to load chat history from a previous session.
 
 ```bash
-python src/chat/chat_cli.py sample.rdg --session my_session
+python -m src.chat.chat_cli sample.rdg --session my_session
 ```
+
+### 10. RDG File Validator
+
+The `rdg_validator.py` script helps you validate your `.rdg` files, identify undefined inputs, and visualize the dependency graph of your generated files. This is useful for debugging and understanding complex `rdg` setups.
+
+To validate an `.rdg` file:
+
+```bash
+python -m src.rdg.rdg_validator.py sample.rdg
+```
+
+Replace `sample.rdg` with the path to the `.rdg` file you want to validate. The script will output:
+*   A dependency graph showing which output files depend on which input files.
+*   A list of "undefined internal inputs" – files that are used as inputs but are not defined as outputs within the same `.rdg` file, and do not exist on the filesystem. These typically indicate an error in your `rdg` file or missing source files.
+*   A list of "external dependencies" – files that are used as inputs but reside outside the `.rdg` file's directory.
+*   A check for the existence of all undefined inputs on the filesystem.
 
 ### Example Workflow
 
