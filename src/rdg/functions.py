@@ -470,8 +470,27 @@ def list_paths(rdg_file: str, **kwargs) -> str:
             
     return "\n".join(listed_paths)
 
+def create_gemini_prompt(rdg_file:str, **kwargs) -> str:
+    """Returns the prompt that would be sent to Gemini, for debugging."""
+    try:
+        input_data = {}
+        for key, value in kwargs.items():
+            input_data[key] = process_input(value, os.path.dirname(rdg_file))
+            
+        if "template" in kwargs:
+            template = kwargs.pop("template")
+        else:
+            raise RdgParserError("Template must be supplied when using the CREATEGEMINIPROMPT")
+        rendered_template = render_template(template, input_data)
+
+        logging.info(f"Rendered template for CREATEGEMINIPROMPT:\n{rendered_template}")
+        return rendered_template
+    except Exception as e:
+        raise RdgParserError(f"Error creating Gemini prompt: {e}")
+
 
 # FUNCTION_REGISTRY
+
 FUNCTION_REGISTRY: Dict[str, Callable] = {
     "UPPERCASE": uppercase,
     "GEMINIPROMPT": gemini_prompt,
@@ -483,4 +502,5 @@ FUNCTION_REGISTRY: Dict[str, Callable] = {
     "RDGTOFILE": rdg_to_file,
     "FILESORDIRECTORIESTOMARKDOWN": files_or_directories_to_markdown,
     "LISTPATHS": list_paths,
+    "CREATEGEMINIPROMPT": create_gemini_prompt,
 }
