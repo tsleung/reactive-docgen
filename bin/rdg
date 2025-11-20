@@ -1,0 +1,177 @@
+#!/bin/bash
+#
+# RDG CLI Wrapper
+# Simplifies running Reactive Document Generation from any directory
+#
+# Usage:
+#   rdg run [file.rdg]     - Generate documents once (default: .default.rdg)
+#   rdg watch [file.rdg]   - Watch and auto-regenerate on changes
+#   rdg init               - Initialize new notebook with template .rdg file
+#
+
+set -e
+
+# Determine the reactive-docgen directory (parent of bin/)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RDG_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+VENV_PYTHON="$RDG_ROOT/.venv/bin/python"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Check if virtualenv exists
+if [ ! -f "$VENV_PYTHON" ]; then
+    echo -e "${RED}Error: Virtual environment not found at $RDG_ROOT/.venv${NC}"
+    echo "Please run the following commands first:"
+    echo "  cd $RDG_ROOT"
+    echo "  python3 -m venv .venv"
+    echo "  .venv/bin/pip install -r requirements.txt"
+    exit 1
+fi
+
+# Show usage
+show_usage() {
+    cat << EOF
+${GREEN}RDG - Reactive Document Generation CLI${NC}
+
+Usage:
+  rdg run [file.rdg]      Generate documents once (default: .default.rdg)
+  rdg watch [file.rdg]    Watch directory and auto-regenerate on changes
+  rdg init                Create .default.rdg in current directory from template
+  rdg help                Show this help message
+
+Examples:
+  ${YELLOW}# From a notebook directory:${NC}
+  rdg run                 # Runs .default.rdg in current directory
+  rdg watch               # Watches current directory, runs .default.rdg on changes
+  rdg run custom.rdg      # Runs custom.rdg in current directory
+
+  ${YELLOW}# From anywhere:${NC}
+  rdg run ~/path/to/notebook/.default.rdg
+  rdg watch ~/path/to/other/.default.rdg
+
+  ${YELLOW}# Initialize a new notebook:${NC}
+  cd my-new-notebook/
+  rdg init                # Creates .default.rdg from template
+
+Environment:
+  Inherits all environment variables from your shell (.env files in reactive-docgen/)
+  - GEMINI_API_KEY: Your Gemini API key
+  - USE_GEMINI_PROXY: Set to 'true' to use serverless proxy
+  - GEMINI_PROXY_URL: Proxy endpoint (if using proxy mode)
+
+EOF
+}
+
+# Command: run
+cmd_run() {
+    local rdg_file="${1:-.default.rdg}"
+
+    # Resolve to absolute path if relative
+    if [[ "$rdg_file" != /* ]]; then
+        rdg_file="$(pwd)/$rdg_file"
+    fi
+
+    # Check if file exists
+    if [ ! -f "$rdg_file" ]; then
+        echo -e "${RED}Error: RDG file not found: $rdg_file${NC}"
+        exit 1
+    fi
+
+    echo -e "${GREEN}Running RDG:${NC} $rdg_file"
+    cd "$RDG_ROOT"
+    "$VENV_PYTHON" -m src.rdg.rdg_cli "$rdg_file"
+}
+
+# Command: watch
+cmd_watch() {
+    local rdg_file="${1:-.default.rdg}"
+
+    # Resolve to absolute path if relative
+    if [[ "$rdg_file" != /* ]]; then
+        rdg_file="$(pwd)/$rdg_file"
+    fi
+
+    # Check if file exists
+    if [ ! -f "$rdg_file" ]; then
+        echo -e "${RED}Error: RDG file not found: $rdg_file${NC}"
+        exit 1
+    fi
+
+    # Get the directory to watch (parent of .rdg file)
+    local watch_dir="$(dirname "$rdg_file")"
+
+    echo -e "${GREEN}Watching:${NC} $watch_dir"
+    echo -e "${GREEN}Running:${NC} $rdg_file on changes"
+    echo -e "${YELLOW}Press Ctrl+C to stop${NC}"
+    echo ""
+
+    cd "$RDG_ROOT"
+    "$VENV_PYTHON" src/script-watcher.py "$watch_dir" "$VENV_PYTHON -m src.rdg.rdg_cli $rdg_file"
+}
+
+# Command: init
+cmd_init() {
+    local target_file=".default.rdg"
+    local template_file="$RDG_ROOT/../.template/.default.rdg"
+
+    if [ -f "$target_file" ]; then
+        echo -e "${YELLOW}Warning: $target_file already exists in current directory${NC}"
+        read -p "Overwrite? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo "Cancelled."
+            exit 0
+        fi
+    fi
+
+    if [ ! -f "$template_file" ]; then
+        echo -e "${RED}Error: Template file not found: $template_file${NC}"
+        exit 1
+    fi
+
+    cp "$template_file" "$target_file"
+    echo -e "${GREEN}Created:${NC} $target_file"
+    echo ""
+    echo "Next steps:"
+    echo "  1. Edit $target_file to define your document generation pipeline"
+    echo "  2. Run 'rdg run' to generate documents"
+    echo "  3. Run 'rdg watch' for auto-regeneration during development"
+}
+
+# Main command dispatcher
+main() {
+    if [ $# -eq 0 ]; then
+        show_usage
+        exit 0
+    fi
+
+    case "$1" in
+        run)
+            shift
+            cmd_run "$@"
+            ;;
+        watch)
+            shift
+            cmd_watch "$@"
+            ;;
+        init)
+            shift
+            cmd_init "$@"
+            ;;
+        help|--help|-h)
+            show_usage
+            ;;
+        *)
+            echo -e "${RED}Error: Unknown command '$1'${NC}"
+            echo ""
+            show_usage
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
