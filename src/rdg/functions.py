@@ -1,4 +1,5 @@
 import os
+import glob as glob_module
 from .template import render_template
 from .gemini import memoized_gemini_call, load_from_cache, save_to_cache, get_cache_key
 from typing import Dict, Callable, Any
@@ -470,6 +471,63 @@ def list_paths(rdg_file: str, **kwargs) -> str:
             
     return "\n".join(listed_paths)
 
+def glob_to_markdown(rdg_file: str, **kwargs) -> str:
+    """
+    Gathers content from files matching a glob pattern and creates a markdown string
+    with file paths and their content in code blocks.
+
+    Args:
+        rdg_file (str): The path to the rdg file (used for relative path resolution).
+        pattern (str): A glob pattern (e.g., "src/**/*.py"). Supports recursive ** syntax.
+    """
+    if "pattern" not in kwargs:
+        raise RdgParserError("The parameter 'pattern' is required in GLOBTOMARKDOWN")
+
+    pattern = kwargs["pattern"]
+
+    # Resolve pattern relative to rdg file location
+    rdg_dir = os.path.dirname(os.path.abspath(rdg_file))
+    full_pattern = os.path.join(rdg_dir, pattern)
+
+    # Expand glob pattern
+    matches = glob_module.glob(full_pattern, recursive=True)
+
+    # Filter to files only (glob can match directories)
+    file_matches = [m for m in matches if os.path.isfile(m)]
+
+    # Sort for deterministic output
+    file_matches.sort()
+
+    if not file_matches:
+        return f"No files matched pattern: {pattern}\n"
+
+    output_content = ""
+    for full_file_path in file_matches:
+        # Display path relative to rdg_dir, preserving the pattern's directory structure
+        display_path = os.path.relpath(full_file_path, rdg_dir)
+
+        try:
+            with open(full_file_path, "r", encoding="utf-8") as f:
+                file_content = f.read()
+            output_content += f"## {display_path}\n\n"
+            output_content += "```\n"
+            output_content += file_content
+            output_content += "\n```\n\n"
+        except UnicodeDecodeError:
+            print(f"Warning: Could not decode file content of {display_path}. Skipping content.")
+            output_content += f"## {display_path}\n\n"
+            output_content += "```\n"
+            output_content += f"Warning: Could not decode content of {display_path} using utf-8 encoding.\n"
+            output_content += "\n```\n\n"
+        except Exception as e:
+            print(f"Error reading file {display_path}: {e}")
+            output_content += f"## {display_path}\n\n"
+            output_content += "```\n"
+            output_content += f"Error reading file {display_path}: {e}\n"
+            output_content += "\n```\n\n"
+
+    return output_content
+
 def create_gemini_prompt(rdg_file:str, **kwargs) -> str:
     """Returns the prompt that would be sent to Gemini, for debugging."""
     try:
@@ -502,5 +560,6 @@ FUNCTION_REGISTRY: Dict[str, Callable] = {
     "RDGTOFILE": rdg_to_file,
     "FILESORDIRECTORIESTOMARKDOWN": files_or_directories_to_markdown,
     "LISTPATHS": list_paths,
+    "GLOBTOMARKDOWN": glob_to_markdown,
     "CREATEGEMINIPROMPT": create_gemini_prompt,
 }
