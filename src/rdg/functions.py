@@ -88,17 +88,17 @@ def gemini_prompt_template(rdg_file:str, use_filesystem_cache=True, **kwargs) ->
 
 def ollama_prompt(rdg_file:str, use_filesystem_cache=True, **kwargs) -> str:
   """Sends the file content to an LLM and returns the response using caching."""
-    
+
   try:
+      if "template" not in kwargs:
+          raise RdgParserError("Template must be supplied when using the GEMINIPROMPT")
+      template = kwargs.pop("template")
+
       input_data = {}
       for key, value in kwargs.items():
           # Pass file_dir to process input
           input_data[key] = process_input(value, os.path.dirname(rdg_file))
-          
-      if "template" in kwargs:
-          template = kwargs.pop("template")
-      else:
-          raise RdgParserError("Template must be supplied when using the GEMINIPROMPT")
+
       rendered_template = render_template(template, input_data)
 
       logging.info(f"Rendered template:\n{rendered_template}")
@@ -110,17 +110,17 @@ def ollama_prompt(rdg_file:str, use_filesystem_cache=True, **kwargs) -> str:
 
 def gemini_prompt(rdg_file:str, use_filesystem_cache=True, **kwargs) -> str:
     """Sends the file content to an LLM and returns the response using caching."""
-    
+
     try:
+        if "template" not in kwargs:
+            raise RdgParserError("Template must be supplied when using the GEMINIPROMPT")
+        template = kwargs.pop("template")
+
         input_data = {}
         for key, value in kwargs.items():
             # Pass file_dir to process input
             input_data[key] = process_input(value, os.path.dirname(rdg_file))
-            
-        if "template" in kwargs:
-            template = kwargs.pop("template")
-        else:
-            raise RdgParserError("Template must be supplied when using the GEMINIPROMPT")
+
         rendered_template = render_template(template, input_data)
 
         logging.info(f"Rendered template:\n{rendered_template}")
@@ -142,24 +142,25 @@ def gemini_prompt(rdg_file:str, use_filesystem_cache=True, **kwargs) -> str:
 
 def gemini_prompt_from_file(rdg_file:str, use_filesystem_cache=True, **kwargs) -> str:
     """Sends the file content to an LLM and returns the response using caching."""
-    
+
     try:
+        if "template_file" not in kwargs:
+            raise RdgParserError("Template file must be supplied when using the GEMINIPROMPTFILE")
+
+        template_file = kwargs.pop("template_file")
+        template_file = process_input(template_file, os.path.dirname(rdg_file))
+
+        if os.path.exists(template_file):
+            with open(template_file, 'r') as f:
+                template = f.read()
+        else:
+            template = template_file
+
         input_data = {}
         for key, value in kwargs.items():
             # Pass file_dir to process input
             input_data[key] = process_input(value, os.path.dirname(rdg_file))
-            
-        if "template_file" in kwargs:
-            template_file = kwargs.pop("template_file")
-            template_file = process_input(template_file, os.path.dirname(rdg_file))
-            
-            if os.path.exists(template_file):
-                with open(template_file, 'r') as f:
-                    template = f.read()
-            else:
-                template = template_file
-        else:
-            raise RdgParserError("Template file must be supplied when using the GEMINIPROMPTFILE")
+
         rendered_template = render_template(template, input_data)
 
         logging.info(f"Rendered template:\n{rendered_template}")
@@ -531,14 +532,14 @@ def glob_to_markdown(rdg_file: str, **kwargs) -> str:
 def create_gemini_prompt(rdg_file:str, **kwargs) -> str:
     """Returns the prompt that would be sent to Gemini, for debugging."""
     try:
+        if "template" not in kwargs:
+            raise RdgParserError("Template must be supplied when using the CREATEGEMINIPROMPT")
+        template = kwargs.pop("template")
+
         input_data = {}
         for key, value in kwargs.items():
             input_data[key] = process_input(value, os.path.dirname(rdg_file))
-            
-        if "template" in kwargs:
-            template = kwargs.pop("template")
-        else:
-            raise RdgParserError("Template must be supplied when using the CREATEGEMINIPROMPT")
+
         rendered_template = render_template(template, input_data)
 
         logging.info(f"Rendered template for CREATEGEMINIPROMPT:\n{rendered_template}")

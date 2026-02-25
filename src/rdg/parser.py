@@ -77,10 +77,17 @@ def process_rdg_file(rdg_file: str, file_dir: str = ".") -> None:
                     with open(output_path, 'w') as outfile:
                         outfile.write(result)
                 except RdgParserError as e:
-                    
                     print(f"Error processing line '{line.strip()}': {e}", file=sys.stderr)
+                    # Write error to output file so downstream consumers can see it
+                    error_content = f"## ERROR\n\n{e}\n"
+                    with open(output_path, 'w') as outfile:
+                        outfile.write(error_content)
                 except Exception as e:
                     print(f"An unexpected error occurred processing line '{line.strip()}': {e}", file=sys.stderr)
+                    # Write error to output file so downstream consumers can see it
+                    error_content = f"## ERROR\n\n{e}\n"
+                    with open(output_path, 'w') as outfile:
+                        outfile.write(error_content)
     except FileNotFoundError:
         print(f"Error: RDF file not found at '{rdg_file}'", file=sys.stderr)
     except Exception as e:
