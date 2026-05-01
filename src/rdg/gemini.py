@@ -5,6 +5,7 @@ import json
 import os
 from functools import lru_cache
 from .config import api_key, CACHE_DIR
+from . import claude as claude_fallback
 
 
 if api_key:
@@ -19,9 +20,10 @@ if api_key:
         }
         model = genai.GenerativeModel(
             # model_name="gemini-1.5-pro",
-            # model_name="gemini-1.5-flash",
-            model_name="gemini-3-flash-preview",
+            # model_name="gemini-1.5-flash",  # 404 on this API key (auth not granted)
+            # model_name="gemini-2.0-flash-exp",  # 404 on v1beta in this SDK version
             # model_name="gemini-2.5-pro",
+            model_name="gemini-3-flash-preview",  # primary; falls back to Claude on quota/billing errors
             generation_config=generation_config,
         )
         logging.info("Gemini API configured successfully.")
@@ -35,14 +37,34 @@ else:
 
 @lru_cache(maxsize=None)
 def memoized_gemini_call(rendered_template):
+    """
+    Try Gemini first; on any failure (quota, billing, transient error), fall
+    back to Claude if ANTHROPIC_API_KEY is configured. Returns "" only if both
+    paths fail or no fallback is configured. Cache key is the rendered template,
+    so a successful Claude response is cached identically to a Gemini response.
+    """
+    gemini_response = ""
+    gemini_error = None
     try:
         chat_session = model.start_chat(history=[])
         response = chat_session.send_message(rendered_template)
-        
-        return response.text
+        gemini_response = response.text
+        if gemini_response:
+            return gemini_response
     except Exception as e:
+        gemini_error = e
         logging.error(f"Gemini API call failed: {e}")
-        return ""
+
+    # Fallback path: Claude. Triggered on Gemini exception OR empty Gemini response.
+    if claude_fallback.is_available():
+        reason = f"exception: {gemini_error}" if gemini_error else "empty response"
+        logging.info(f"Falling back to Claude ({reason})")
+        claude_response = claude_fallback.call_claude(rendered_template)
+        if claude_response:
+            return claude_response
+        logging.error("Claude fallback also returned empty response")
+
+    return gemini_response  # "" — let the caller's empty-file detection trigger
 
 
 def get_cache_key(rendered_template):

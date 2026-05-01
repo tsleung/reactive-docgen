@@ -1,3 +1,4 @@
 google-generativeai
 python-dotenv
 ollama
+anthropic
