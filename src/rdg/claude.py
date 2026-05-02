@@ -1,67 +1,84 @@
 """
-Claude API fallback for RDG pipeline.
+Claude CLI fallback for RDG pipeline.
 
 When Gemini fails (quota exhaustion, billing 429, transient errors), the
-pipeline falls back to Claude. The user pays for Claude API directly so this
-is a paid path, but it keeps RDG operational instead of producing empty reports.
+pipeline falls back to the local `claude` CLI — the same Claude Code binary
+the user is already authenticated against. This avoids needing a separate
+ANTHROPIC_API_KEY (which would require a second billing account); the CLI
+uses the existing Claude subscription.
 
-Set ANTHROPIC_API_KEY in the .env file (alongside GEMINI_API_KEY) to enable.
-If unset, the fallback is a no-op and the original Gemini failure surfaces.
+Requirements:
+- `claude` binary on PATH (https://docs.claude.com/en/docs/claude-code)
+- User authenticated (one-time `claude login`)
+
+Configuration:
+- CLAUDE_CLI_PATH (optional) — override binary location; defaults to "claude"
+- CLAUDE_CLI_MODEL (optional) — model alias (sonnet/opus/haiku); defaults to "sonnet"
+- CLAUDE_CLI_TIMEOUT_SECONDS (optional) — per-call timeout; defaults to 600 (10 min)
 """
 
 import logging
-from .config import anthropic_api_key, CLAUDE_FALLBACK_MODEL, MAX_OUTPUT_TOKENS
+import shutil
+import subprocess
 
-# Lazy-import: only initialize the Anthropic client if the fallback is configured
-# AND actually invoked. Importing the SDK at module load fails for users without
-# the package installed, which would break Gemini-only workflows.
-_client = None
+from .config import CLAUDE_CLI_PATH, CLAUDE_CLI_MODEL, CLAUDE_CLI_TIMEOUT_SECONDS
+
+_resolved_path = None
+_availability_logged = False
 
 
-def _get_client():
-    global _client
-    if _client is not None:
-        return _client
-    if not anthropic_api_key:
-        return None
-    try:
-        import anthropic
-        _client = anthropic.Anthropic(api_key=anthropic_api_key)
-        logging.info(f"Claude fallback configured: {CLAUDE_FALLBACK_MODEL}")
-        return _client
-    except ImportError:
-        logging.error(
-            "Claude fallback requested but `anthropic` package is not installed. "
-            "Run: pip install anthropic"
-        )
-        return None
-    except Exception as e:
-        logging.error(f"Claude fallback configuration failed: {e}")
-        return None
+def _resolve_cli():
+    """Find the claude binary on PATH (or at CLAUDE_CLI_PATH). Cached."""
+    global _resolved_path, _availability_logged
+    if _resolved_path is not None:
+        return _resolved_path
+    path = shutil.which(CLAUDE_CLI_PATH)
+    if path:
+        _resolved_path = path
+        if not _availability_logged:
+            logging.info(
+                f"Claude CLI fallback configured: {path} (model: {CLAUDE_CLI_MODEL})"
+            )
+            _availability_logged = True
+    return path
 
 
 def is_available():
-    """True if Claude fallback is configured and ready."""
-    return _get_client() is not None
+    """True if the claude CLI is installed and discoverable."""
+    return _resolve_cli() is not None
 
 
 def call_claude(rendered_template):
     """
-    Call Claude with the rendered template. Returns the response text on
-    success, empty string on failure. Mirrors the contract of memoized_gemini_call.
+    Invoke the claude CLI in non-interactive print mode. Returns the response
+    text on success, empty string on failure. Mirrors the contract of
+    memoized_gemini_call.
+
+    Uses --print (one-shot, no REPL) and pipes the prompt via stdin to avoid
+    argv length limits on long audit prompts.
     """
-    client = _get_client()
-    if client is None:
+    cli = _resolve_cli()
+    if cli is None:
         return ""
     try:
-        message = client.messages.create(
-            model=CLAUDE_FALLBACK_MODEL,
-            max_tokens=MAX_OUTPUT_TOKENS,
-            messages=[{"role": "user", "content": rendered_template}],
+        result = subprocess.run(
+            [cli, "--print", "--model", CLAUDE_CLI_MODEL],
+            input=rendered_template,
+            capture_output=True,
+            text=True,
+            timeout=CLAUDE_CLI_TIMEOUT_SECONDS,
+            check=False,
         )
-        # Concatenate all text blocks (Claude can return multiple in principle)
-        parts = [block.text for block in message.content if hasattr(block, "text")]
-        return "".join(parts)
+        if result.returncode != 0:
+            stderr_tail = (result.stderr or "").strip()[-500:]
+            logging.error(
+                f"Claude CLI exited {result.returncode}: {stderr_tail}"
+            )
+            return ""
+        return result.stdout
+    except subprocess.TimeoutExpired:
+        logging.error(f"Claude CLI timed out after {CLAUDE_CLI_TIMEOUT_SECONDS}s")
+        return ""
     except Exception as e:
-        logging.error(f"Claude API call failed: {e}")
+        logging.error(f"Claude CLI invocation failed: {e}")
         return ""
