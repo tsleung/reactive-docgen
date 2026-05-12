@@ -4,11 +4,21 @@ import hashlib
 import json
 import os
 from functools import lru_cache
-from .config import api_key, CACHE_DIR
+from .config import api_key, CACHE_DIR, RDG_PRIMARY
 from . import claude as claude_fallback
 
 
-if api_key:
+# When RDG_PRIMARY=claude, skip the Gemini SDK configuration entirely —
+# Gemini won't be called, no API key required. This lets users with only
+# Claude Code installed run RDG without provisioning a Gemini billing
+# account.
+if RDG_PRIMARY == "claude":
+    logging.info("RDG_PRIMARY=claude — Gemini SDK skipped; all calls route to Claude CLI.")
+    if not claude_fallback.is_available():
+        logging.error("RDG_PRIMARY=claude requires the `claude` CLI on PATH. Install Claude Code or unset RDG_PRIMARY.")
+        exit(1)
+    model = None  # not used in claude-primary mode
+elif api_key:
     try:
         genai.configure(api_key=api_key)
         generation_config = {
@@ -38,11 +48,25 @@ else:
 @lru_cache(maxsize=None)
 def memoized_gemini_call(rendered_template):
     """
-    Try Gemini first; on any failure (quota, billing, transient error), fall
-    back to Claude if ANTHROPIC_API_KEY is configured. Returns "" only if both
-    paths fail or no fallback is configured. Cache key is the rendered template,
-    so a successful Claude response is cached identically to a Gemini response.
+    Routing:
+    - RDG_PRIMARY=claude (default off): skip Gemini, call Claude CLI directly.
+      Use case: avoid Gemini billing when Claude Code subscription is paid.
+    - Otherwise (default): try Gemini first; on any failure (quota, billing,
+      transient error), fall back to Claude if the `claude` CLI is available.
+
+    Returns "" only if all configured paths fail. Cache key is the rendered
+    template, so a successful Claude response is cached identically to a
+    Gemini response.
     """
+    if RDG_PRIMARY == "claude":
+        # Direct route: no Gemini attempt at all. Avoids quota errors,
+        # avoids any billing surface, single-LLM provenance for the run.
+        claude_response = claude_fallback.call_claude(rendered_template)
+        if claude_response:
+            return claude_response
+        logging.error("Claude CLI returned empty response (RDG_PRIMARY=claude)")
+        return ""
+
     gemini_response = ""
     gemini_error = None
     try:
