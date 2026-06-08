@@ -26,6 +26,25 @@ from .config import CLAUDE_CLI_PATH, CLAUDE_CLI_MODEL, CLAUDE_CLI_TIMEOUT_SECOND
 _resolved_path = None
 _availability_logged = False
 
+# Non-empty sentinel prefix written into the output file when the LLM call
+# FAILS (raises, times out, or the CLI exits non-zero). Returning this string
+# instead of "" means the caller writes a non-empty error report carrying the
+# actual cause (e.g. "context window exceeded") rather than a 0-byte file that
+# hides the failure. The RtB-side audit `audit-rdg-empty-reports.ts` hard-fails
+# on 0-byte files; a non-empty sentinel satisfies it AND makes the cause visible.
+# This is the EXCEPTION/failure path only — a model that genuinely returns an
+# empty response with NO exception still yields "" (see gemini.py).
+ENGINE_ERROR_SENTINEL = "RDG-ENGINE-ERROR"
+
+
+def format_engine_error(exc_type, message):
+    """Build the non-empty error sentinel string surfaced into the output file.
+
+    Format: ``RDG-ENGINE-ERROR: <ExceptionType>: <message>`` so both the
+    failure class and its detail land in the report.
+    """
+    return f"{ENGINE_ERROR_SENTINEL}: {exc_type}: {message}"
+
 
 def _resolve_cli():
     """Find the claude binary on PATH (or at CLAUDE_CLI_PATH). Cached."""
@@ -51,7 +70,10 @@ def is_available():
 def call_claude(rendered_template):
     """
     Invoke the claude CLI in non-interactive print mode. Returns the response
-    text on success, empty string on failure. Mirrors the contract of
+    text on success. On FAILURE (raise, timeout, or non-zero CLI exit) returns
+    a non-empty error sentinel (see ENGINE_ERROR_SENTINEL / format_engine_error)
+    so the caller writes a non-empty error report carrying the actual cause,
+    rather than a 0-byte file that hides the failure. Mirrors the contract of
     memoized_gemini_call.
 
     Uses --print (one-shot, no REPL) and pipes the prompt via stdin to avoid
@@ -59,6 +81,10 @@ def call_claude(rendered_template):
     """
     cli = _resolve_cli()
     if cli is None:
+        # Configuration/availability gap, not a per-call exception. In
+        # RDG_PRIMARY=claude mode availability is enforced at import (exit 1);
+        # from the Gemini fallback path call_claude is only invoked when
+        # is_available() is True. Left as "" — not the exception surface.
         return ""
     try:
         result = subprocess.run(
@@ -74,11 +100,17 @@ def call_claude(rendered_template):
             logging.error(
                 f"Claude CLI exited {result.returncode}: {stderr_tail}"
             )
-            return ""
+            return format_engine_error(
+                "ClaudeCliNonZeroExit",
+                f"exit {result.returncode}: {stderr_tail}",
+            )
         return result.stdout
     except subprocess.TimeoutExpired:
         logging.error(f"Claude CLI timed out after {CLAUDE_CLI_TIMEOUT_SECONDS}s")
-        return ""
+        return format_engine_error(
+            "subprocess.TimeoutExpired",
+            f"Claude CLI timed out after {CLAUDE_CLI_TIMEOUT_SECONDS}s",
+        )
     except Exception as e:
         logging.error(f"Claude CLI invocation failed: {e}")
-        return ""
+        return format_engine_error(type(e).__name__, str(e))

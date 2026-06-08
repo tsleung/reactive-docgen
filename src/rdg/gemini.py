@@ -63,7 +63,12 @@ def memoized_gemini_call(rendered_template):
         # avoids any billing surface, single-LLM provenance for the run.
         claude_response = claude_fallback.call_claude(rendered_template)
         if claude_response:
+            # On claude failure this is a non-empty RDG-ENGINE-ERROR sentinel
+            # (not raw model text) — it surfaces here so the caller writes the
+            # cause into the report instead of a 0-byte file.
             return claude_response
+        # Reached ONLY on a genuine empty response with NO exception. The
+        # caller's empty-file detection / 0-byte audit covers this case.
         logging.error("Claude CLI returned empty response (RDG_PRIMARY=claude)")
         return ""
 
@@ -85,10 +90,21 @@ def memoized_gemini_call(rendered_template):
         logging.info(f"Falling back to Claude ({reason})")
         claude_response = claude_fallback.call_claude(rendered_template)
         if claude_response:
+            # On claude failure this is a non-empty RDG-ENGINE-ERROR sentinel —
+            # the caller writes it to the report so the cause is visible.
             return claude_response
         logging.error("Claude fallback also returned empty response")
 
-    return gemini_response  # "" — let the caller's empty-file detection trigger
+    # If Gemini RAISED, surface that exception as a non-empty sentinel rather
+    # than swallowing it to "". Only when there was NO exception (genuine empty
+    # response, no available/successful fallback) do we return "" and let the
+    # caller's empty-file detection trigger.
+    if gemini_error is not None:
+        return claude_fallback.format_engine_error(
+            type(gemini_error).__name__, str(gemini_error)
+        )
+
+    return gemini_response  # "" — genuine empty (no exception); empty-file detection triggers
 
 
 def get_cache_key(rendered_template):
