@@ -1,5 +1,6 @@
 import os
 import glob as glob_module
+from pathlib import PurePath
 from .template import render_template
 from .gemini import memoized_gemini_call, load_from_cache, save_to_cache, get_cache_key
 from typing import Dict, Callable, Any
@@ -18,6 +19,85 @@ def process_input(input_arg, file_dir):
 class RdgParserError(Exception):
     """Custom exception for RDG parsing errors."""
     pass
+
+
+def _parse_exclude_patterns(exclude_str: str) -> list[str]:
+    """Split a comma-separated exclude string into stripped glob patterns.
+
+    Mirrors how ``files=`` is comma-split + stripped. Empty entries (e.g. a
+    trailing comma) are dropped so they cannot accidentally match every path.
+    Returns an empty list when no exclude was supplied.
+    """
+    if not exclude_str:
+        return []
+    return [p.strip() for p in exclude_str.split(",") if p.strip()]
+
+
+def _pattern_matches(pure: PurePath, pattern: str) -> bool:
+    """Match ``pure`` against a single glob ``pattern`` with correct ``**``.
+
+    ``fnmatch`` does NOT treat ``**`` as crossing ``/`` and Python's
+    ``PurePath.match`` (pre-3.13 semantics, still the behavior of ``.match``)
+    treats a leading ``**/`` as requiring AT LEAST ONE directory component — so
+    ``**/*.spec.ts`` would miss a top-level ``foo.spec.ts``. We therefore prefer
+    ``PurePath.full_match`` (Python 3.13+), whose ``**`` matches zero-or-more
+    directory components — exactly what authors mean by ``**/*.spec.ts`` and
+    ``**/__tests__/**``.
+
+    On interpreters lacking ``full_match`` we degrade to ``.match`` plus a
+    leading-``**/``-stripped retry, which recovers the top-level case rather
+    than silently under-filtering.
+    """
+    full_match = getattr(pure, "full_match", None)
+    if full_match is not None:
+        return full_match(pattern)
+    # Fallback for Python < 3.13: .match lacks zero-dir ** semantics.
+    if pure.match(pattern):
+        return True
+    if pattern.startswith("**/"):
+        return pure.match(pattern[len("**/"):])
+    return False
+
+
+def _is_excluded(rel_path: str, exclude_patterns: list[str]) -> bool:
+    """True if ``rel_path`` matches ANY exclude glob pattern.
+
+    Match is performed on the SAME path basis the caller uses for
+    display/inclusion:
+      - GLOBTOMARKDOWN passes the path relative to ``rdg_dir``.
+      - FILESTOMARKDOWN passes the ``files=`` entry as given.
+
+    Separators are normalised to ``/`` so behavior is deterministic regardless
+    of host OS path style.
+    """
+    if not exclude_patterns:
+        return False
+    pure = PurePath(rel_path.replace(os.sep, "/"))
+    for pattern in exclude_patterns:
+        if _pattern_matches(pure, pattern.replace(os.sep, "/")):
+            return True
+    return False
+
+
+def _reject_unknown_kwargs(kwargs: dict, allowed: set, fn_label: str) -> None:
+    """Fail loud on any kwarg outside the per-function allowlist.
+
+    Documented-intent kwargs that the function does not read are a silent
+    contract violation (the original GLOBTOMARKDOWN/FILESTOMARKDOWN exclude bug:
+    authors passed ``exclude=`` for 26 usages and it was dropped without a
+    word). Surfacing unknown kwargs makes such typos/contract drift visible at
+    parse time instead of producing phantom output.
+
+    Allowlists verified zero-risk against every live ``apps/rtb-manual/.rdg``
+    usage on 2026-06-08 (GLOBTOMARKDOWN: {pattern, exclude}; FILESTOMARKDOWN:
+    {files, exclude} — no other kwarg appears in production).
+    """
+    unknown = sorted(k for k in kwargs if k not in allowed)
+    if unknown:
+        raise RdgParserError(
+            f"Unknown parameter '{unknown[0]}' in {fn_label} "
+            f"(allowed: {', '.join(sorted(allowed))})"
+        )
 
 def uppercase(rdg_file:str, **kwargs) -> str:
     """Converts the content of a file to uppercase."""
@@ -246,14 +326,24 @@ def create_markdown_from_files(rdg_file: str, **kwargs) -> str:
         rdg_file (str): The path to the rdg file (used for relative path resolution).
         files (list): A comma separated string of file paths
     """
+    _reject_unknown_kwargs(kwargs, {"files", "exclude"}, "FILESTOMARKDOWN")
+
     if "files" not in kwargs:
         raise RdgParserError("The parameter 'files' is required in FILESTOMARKDOWN")
 
     files_str = kwargs["files"]
-    
+
     # Split the comma-separated string into a list of paths, stripping whitespace
     file_paths = [f.strip() for f in files_str.split(",")]
-    
+
+    # Optional exclude: comma-separated glob patterns. A file is dropped if it
+    # matches ANY pattern, matched against the file_path entry as given (the
+    # same path basis used for display below).
+    exclude_patterns = _parse_exclude_patterns(kwargs.get("exclude", ""))
+    file_paths = [
+        fp for fp in file_paths if not _is_excluded(fp, exclude_patterns)
+    ]
+
     # Construct the absolute path to the directory relative to rdg_file
     rdg_dir = os.path.dirname(os.path.abspath(rdg_file))
 
@@ -481,10 +571,17 @@ def glob_to_markdown(rdg_file: str, **kwargs) -> str:
         rdg_file (str): The path to the rdg file (used for relative path resolution).
         pattern (str): A glob pattern (e.g., "src/**/*.py"). Supports recursive ** syntax.
     """
+    _reject_unknown_kwargs(kwargs, {"pattern", "exclude"}, "GLOBTOMARKDOWN")
+
     if "pattern" not in kwargs:
         raise RdgParserError("The parameter 'pattern' is required in GLOBTOMARKDOWN")
 
     pattern = kwargs["pattern"]
+
+    # Optional exclude: comma-separated glob patterns. A file is dropped if it
+    # matches ANY pattern, matched against the rdg_dir-relative display path —
+    # the same path basis used for inclusion/display below.
+    exclude_patterns = _parse_exclude_patterns(kwargs.get("exclude", ""))
 
     # Resolve pattern relative to rdg file location
     rdg_dir = os.path.dirname(os.path.abspath(rdg_file))
@@ -495,6 +592,14 @@ def glob_to_markdown(rdg_file: str, **kwargs) -> str:
 
     # Filter to files only (glob can match directories)
     file_matches = [m for m in matches if os.path.isfile(m)]
+
+    # Drop excluded files. Match exclude patterns against the rdg_dir-relative
+    # path (identical to the display_path computed in the emit loop), so
+    # `**/__tests__/**` and `**/*.spec.ts` filter as authors intend.
+    file_matches = [
+        m for m in file_matches
+        if not _is_excluded(os.path.relpath(m, rdg_dir), exclude_patterns)
+    ]
 
     # Sort for deterministic output
     file_matches.sort()
