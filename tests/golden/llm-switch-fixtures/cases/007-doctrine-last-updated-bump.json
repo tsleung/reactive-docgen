@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0",
+  "fixtureId": "007-doctrine-last-updated-bump",
+  "pipeline": "content-doctrine.rdg",
+  "facet": "cosmetic — metadata bump without body change",
+  "before": "# Some Doctrine\n\n**Last Updated:** 2026-04-10\n**Status:** Active\n\n## Body\n\nThe doctrine is X.",
+  "after": "# Some Doctrine\n\n**Last Updated:** 2026-05-17\n**Status:** Active\n\n## Body\n\nThe doctrine is X.",
+  "label": {
+    "substantialChange": false,
+    "rationale": "Only the Last Updated date changed; body is byte-identical. content-doctrine.rdg's verdict on this doc cannot change. Re-run wastes API calls."
+  },
+  "graderNotes": "Common pattern in doc maintenance. S11 must classify these as cosmetic to avoid wasteful re-runs on every metadata bump."
+}

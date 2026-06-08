@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "1.0",
+  "fixtureId": "doctrine-stale/missing-last-updated",
+  "category": "doctrine-stale",
+  "rdgPipeline": "content-doctrine.rdg",
+  "promptFile": ".rdg/prompts/doctrine-health.md",
+  "inputFiles": [
+    "input/CLAUDE_FAKE.md"
+  ],
+  "expectedSeverity": "CONCERN",
+  "expectedCategory": "Content Freshness / Doctrine Metadata",
+  "expectedPatternMatches": [
+    "Last Updated"
+  ],
+  "expectedVerdict": "STALE",
+  "negativeAssertions": [
+    "Verdict MUST NOT be HEALTHY",
+    "Verdict MUST NOT skip the file based on name pattern"
+  ],
+  "documentedFailureMode": "Past doctrine-health runs have silently accepted files without metadata when the body looked plausible. This fixture pins down the trivial check.",
+  "relatedDocs": [
+    "CLAUDE.md#section-8-documentation-metadata"
+  ]
+}

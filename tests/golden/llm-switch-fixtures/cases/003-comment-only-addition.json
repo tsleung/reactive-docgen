@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0",
+  "fixtureId": "003-comment-only-addition",
+  "pipeline": "code-health.rdg",
+  "facet": "cosmetic — adds explanatory comment, code unchanged",
+  "before": "export function clampWealth(w: number): number {\n  return Math.max(0, w);\n}",
+  "after": "export function clampWealth(w: number): number {\n  // §9.4 EXCEPTION: bankruptcy floor — wealth cannot go negative.\n  return Math.max(0, w);\n}",
+  "label": {
+    "substantialChange": false,
+    "rationale": "Code is byte-identical; only an explanatory comment was added. The added comment may actually IMPROVE the audit verdict (turns a CONCERN into a PASS by satisfying the §9.4 exception-comment requirement), so technically the audit verdict could change. However, code-health.rdg is supposed to recognize Math.max(0, wealth) as a legitimate bankruptcy floor regardless of comment presence — and prompt precision means the comment doesn't flip the verdict. Re-run is wasteful."
+  },
+  "graderNotes": "Edge case. If the audit prompt currently penalizes missing §9.4 comments, this would arguably flip to `substantialChange: true`. Grader policy: trust the prompt to know the bankruptcy-floor pattern."
+}

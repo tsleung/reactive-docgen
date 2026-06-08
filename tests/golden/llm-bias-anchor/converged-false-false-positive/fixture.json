@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "1.0",
+  "fixtureId": "llm-bias-anchor/converged-false-false-positive",
+  "category": "llm-bias-anchor",
+  "rdgPipeline": "code-health.rdg",
+  "promptFile": ".rdg/prompts/code-health.md",
+  "inputFiles": [
+    "input/adaptive-mc-runner.ts"
+  ],
+  "expectedSeverity": "NONE",
+  "expectedCategory": "PASS",
+  "expectedPatternMatches": [],
+  "expectedVerdict": "PASS",
+  "negativeAssertions": [
+    "MUST NOT flag `converged: false` as a safety net",
+    "MUST NOT flag absence of throw on non-convergence",
+    "MUST NOT suggest 'throw on non-convergence' — the function REPORTS, the caller DECIDES"
+  ],
+  "documentedFailureMode": "2026-03-13 RDG run — false positive rate ~21% on P0 findings. Category 4 in the False Positive Triage Methodology: `converged: false` vs safety net.",
+  "relatedDocs": [
+    "docs/operations/RDG_GOVERNANCE_REPORTS_PLAYBOOK.md#the-6-false-positive-categories",
+    "docs/notes/2026-02-25_RDG_AUTHORITY_DOCTRINE.md"
+  ],
+  "biasAnchor": true
+}

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0",
+  "fixtureId": "002-whitespace-only-reformat",
+  "pipeline": "code-health.rdg",
+  "facet": "cosmetic — prettier-style whitespace reformat",
+  "before": "export function lookup(policy:number[][][],t:number,w:number,h:number):number{return policy[t][w][h];}",
+  "after": "export function lookup(\n  policy: number[][][],\n  t: number,\n  w: number,\n  h: number,\n): number {\n  return policy[t][w][h];\n}",
+  "label": {
+    "substantialChange": false,
+    "rationale": "Pure whitespace + line-break reformat. AST identical. Code-health audit verdict cannot change. Re-running burns API credits for zero verdict difference."
+  },
+  "graderNotes": "Canonical cosmetic. The S11 predicate should be confident on this class."
+}

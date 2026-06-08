@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0",
+  "fixtureId": "004-rename-variable",
+  "pipeline": "code-health.rdg",
+  "facet": "cosmetic — local variable rename",
+  "before": "export function meanReturn(rs: number[]): number {\n  const total = rs.reduce((s, r) => s + r, 0);\n  return total / rs.length;\n}",
+  "after": "export function meanReturn(returns: number[]): number {\n  const sum = returns.reduce((s, r) => s + r, 0);\n  return sum / returns.length;\n}",
+  "label": {
+    "substantialChange": false,
+    "rationale": "Local rename (`rs` → `returns`, `total` → `sum`). No semantic change. Audit verdict cannot change. The new names are arguably clearer but the audit is not a style review."
+  },
+  "graderNotes": "Pure rename. Should be safely classified cosmetic."
+}

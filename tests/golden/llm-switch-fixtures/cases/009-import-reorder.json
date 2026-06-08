@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0",
+  "fixtureId": "009-import-reorder",
+  "pipeline": "code-health.rdg",
+  "facet": "cosmetic — import statement reorder",
+  "before": "import { z } from 'zod';\nimport { foo } from './foo';\nimport { bar } from './bar';\n\nexport function x() { return foo() + bar(); }",
+  "after": "import { bar } from './bar';\nimport { foo } from './foo';\nimport { z } from 'zod';\n\nexport function x() { return foo() + bar(); }",
+  "label": {
+    "substantialChange": false,
+    "rationale": "Imports alphabetized; runtime semantics identical. No code-health audit verdict can change."
+  },
+  "graderNotes": "Common eslint --fix output. Must be classified cosmetic."
+}

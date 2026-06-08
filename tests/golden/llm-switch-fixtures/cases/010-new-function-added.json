@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0",
+  "fixtureId": "010-new-function-added",
+  "pipeline": "code-health.rdg",
+  "facet": "algorithmic — net-new function with potential audit surface",
+  "before": "export function meanReturn(returns: number[]): number {\n  const sum = returns.reduce((s, r) => s + r, 0);\n  return sum / returns.length;\n}",
+  "after": "export function meanReturn(returns: number[]): number {\n  const sum = returns.reduce((s, r) => s + r, 0);\n  return sum / returns.length;\n}\n\nexport function stdDev(returns: number[]): number {\n  const m = meanReturn(returns);\n  const variance = returns.reduce((s, r) => s + (r - m) ** 2, 0) / returns.length;\n  return Math.sqrt(variance);\n}",
+  "label": {
+    "substantialChange": true,
+    "rationale": "Net-new function adds surface area to the audit. Even if the new function is clean, the audit must inspect it for safety nets, convergence, complexity. The S11 predicate cannot skip this; the only way to know the new code is clean is to actually audit it."
+  },
+  "graderNotes": "Default for net-new code is substantial. S11 predicate should NOT try to infer cleanliness without running the audit; that would be reproducing the audit's job."
+}
