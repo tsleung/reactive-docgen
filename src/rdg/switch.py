@@ -364,6 +364,12 @@ def _invoke_claude_switch(
 
     start = time.perf_counter()
     try:
+        # NOTE: deliberately NO `--effort` here, unlike claude.py::build_argv.
+        # The switch is a binary changed/not-changed classification and is
+        # non-verdict-bearing, so MODEL_ROUTING's effort floor does not reach
+        # it; raising effort would buy nothing and cost latency on a call whose
+        # whole contract is "cheap" (see the timeout message below). Leave it
+        # inheriting the CLI default — this omission is a decision, not a gap.
         result = subprocess.run(
             [cli, "--print", "--model", model],
             input=prompt,

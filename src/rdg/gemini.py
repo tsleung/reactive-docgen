@@ -1,4 +1,5 @@
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import logging
 import hashlib
 import json
@@ -7,6 +8,12 @@ from functools import lru_cache
 from .config import api_key, CACHE_DIR, RDG_PRIMARY
 from . import claude as claude_fallback
 
+
+# Primary model id; the call falls back to Claude on quota/billing errors.
+# History (kept for posterity — these were observed on this repo's key/SDK):
+#   gemini-1.5-flash      -> 404 (auth not granted on this key)
+#   gemini-2.0-flash-exp  -> 404 on v1beta in the old SDK version
+MODEL_NAME = "gemini-3-flash-preview"
 
 # When RDG_PRIMARY=claude, skip the Gemini SDK configuration entirely —
 # Gemini won't be called, no API key required. This lets users with only
@@ -17,24 +24,17 @@ if RDG_PRIMARY == "claude":
     if not claude_fallback.is_available():
         logging.error("RDG_PRIMARY=claude requires the `claude` CLI on PATH. Install Claude Code or unset RDG_PRIMARY.")
         exit(1)
-    model = None  # not used in claude-primary mode
+    client = None  # not used in claude-primary mode
+    generation_config = None
 elif api_key:
     try:
-        genai.configure(api_key=api_key)
-        generation_config = {
-        "temperature": 0.667,
-        "top_p": 0.6,
-        "top_k": 20,
-        # "max_output_tokens": 64192,
-        "response_mime_type": "text/plain",
-        }
-        model = genai.GenerativeModel(
-            # model_name="gemini-1.5-pro",
-            # model_name="gemini-1.5-flash",  # 404 on this API key (auth not granted)
-            # model_name="gemini-2.0-flash-exp",  # 404 on v1beta in this SDK version
-            # model_name="gemini-2.5-pro",
-            model_name="gemini-3-flash-preview",  # primary; falls back to Claude on quota/billing errors
-            generation_config=generation_config,
+        client = genai.Client(api_key=api_key)
+        generation_config = types.GenerateContentConfig(
+            temperature=0.667,
+            top_p=0.6,
+            top_k=20,
+            # max_output_tokens=64192,
+            response_mime_type="text/plain",
         )
         logging.info("Gemini API configured successfully.")
     except Exception as e:
@@ -75,8 +75,11 @@ def memoized_gemini_call(rendered_template):
     gemini_response = ""
     gemini_error = None
     try:
-        chat_session = model.start_chat(history=[])
-        response = chat_session.send_message(rendered_template)
+        response = client.models.generate_content(
+            model=MODEL_NAME,
+            contents=rendered_template,
+            config=generation_config,
+        )
         gemini_response = response.text
         if gemini_response:
             return gemini_response

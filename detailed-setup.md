@@ -9,7 +9,7 @@ Welcome to `reactive-docgen`! This tool empowers you to generate text files by p
 
 ## Before You Begin
 
-**Important Note:** To run `reactive-docgen`, you need to have Python and `pip` (Python package installer) installed on your computer. Python is a programming language, and `pip` is a tool that helps you install additional libraries (like `google-generativeai`) which the tool needs. This guide will include some basic instructions; however, if you are not using macOS and are having issues, you may need to search online for specific instructions on how to install Python for your operating system. You will also need a Google account with access to the Gemini AI model and a Gemini API key, which you can acquire for free. Alternatively, you can use Ollama, a free and open-source tool for running LLMs locally.
+**Important Note:** To run `reactive-docgen`, you need to have Python and `pip` (Python package installer) installed on your computer. Python is a programming language, and `pip` is a tool that helps you install additional libraries (like `google-genai`) which the tool needs. This guide will include some basic instructions; however, if you are not using macOS and are having issues, you may need to search online for specific instructions on how to install Python for your operating system. You will also need a Google account with access to the Gemini AI model and a Gemini API key, which you can acquire for free. Alternatively, you can use Ollama, a free and open-source tool for running LLMs locally.
 
 ## Step-by-Step Guide
 
@@ -64,10 +64,10 @@ This step involves downloading the files so you can use the tool. This process i
     ```
  *   **For other operating systems**: you may have to search for platform specific instructions for setting up a virtual environment.
 
-This tool utilizes the `google-generativeai` and `python-dotenv` libraries. You can install it using `pip`:
+This tool utilizes the `google-genai` and `python-dotenv` libraries. You can install it using `pip`:
 
 ```bash
-pip install google-generativeai python-dotenv
+pip install google-genai python-dotenv
 ```
 
 The `python-dotenv` library allows you to use the API key using a `.env` file, which is more secure than exposing the API key in your terminal.
@@ -147,7 +147,7 @@ You may use a code editor such as Visual Studio Code (VS Code) to view your outp
 
 ## Troubleshooting
 
-*   **`ModuleNotFoundError: No module named 'dotenv'`:** Make sure that you have installed the required libraries: `pip install google-generativeai python-dotenv`.
+*   **`ModuleNotFoundError: No module named 'dotenv'`:** Make sure that you have installed the required libraries: `pip install google-genai python-dotenv`.
 *   **`GEMINI_API_KEY` not set:** Make sure to create the `.env` file and set the `GEMINI_API_KEY` variable if you are using the Gemini API.
 *   **Ollama not working:** Ensure Ollama is installed and running, and that you have downloaded a model using `ollama pull <model_name>`.
 *   **`RdgParserError: Template must be supplied when using the GEMINIPROMPT`**: Make sure that the template argument is included when calling the `GEMINIPROMPT` formula. Example: `GEMINIPROMPT(template="your template here", input="input.md")`

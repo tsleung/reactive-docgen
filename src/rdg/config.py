@@ -22,6 +22,43 @@ CLAUDE_CLI_PATH = os.environ.get("CLAUDE_CLI_PATH", "claude")
 CLAUDE_CLI_MODEL = os.environ.get("CLAUDE_CLI_MODEL", "sonnet")
 CLAUDE_CLI_TIMEOUT_SECONDS = int(os.environ.get("CLAUDE_CLI_TIMEOUT_SECONDS", "600"))
 
+# Claude CLI reasoning-effort level, passed through as `--effort <level>`.
+#
+# UNSET is the default and means the flag is OMITTED ENTIRELY, so the CLI's own
+# default effort applies. That is the correct system-boundary pass-through: this
+# engine does not have an opinion about effort, it only refuses to corrupt one.
+#
+# Validated HERE, at import, rather than at call time — because the CLI's own
+# handling of a bad value is a SILENT DEGRADE. Measured 2026-07-30 against the
+# installed CLI:
+#
+#     $ printf 'hi' | claude --print --model sonnet --effort xhgih
+#     Warning: Unknown --effort value 'xhgih' — ignoring it and using the
+#     default effort. Valid values: low, medium, high, xhigh, max.
+#     <normal response>                                     # ← exit 0
+#
+# A typo therefore runs an entire pipeline at default effort while the caller
+# believes the request was honored, and the only trace is a warning on a stderr
+# stream that run_pipeline_bg redirects into a per-pipeline log. Refusing at
+# import converts that into an immediate, unmissable failure.
+#
+# The empty string is INVALID, not "unset": `CLAUDE_CLI_EFFORT=` in a wrapper
+# is a mistake worth surfacing, not a request for default behavior.
+#
+# Resolution + validation contract deliberately mirrors rtb-manual's
+# projects/rtb-cockpit/sidecar/spawn-claude.ts (`CLAUDE_CLI_EFFORT` →
+# `--effort`, never coerced, never forwarded) so the two dispatch mechanisms
+# agree. Ladder per docs/operations/MODEL_ROUTING.md.
+CLAUDE_CLI_EFFORT_LEVELS = ("low", "medium", "high", "xhigh", "max")
+CLAUDE_CLI_EFFORT = os.environ.get("CLAUDE_CLI_EFFORT")
+if CLAUDE_CLI_EFFORT is not None and CLAUDE_CLI_EFFORT not in CLAUDE_CLI_EFFORT_LEVELS:
+    raise ValueError(
+        f"invalid CLAUDE_CLI_EFFORT {CLAUDE_CLI_EFFORT!r} — allowed: "
+        f"{' | '.join(CLAUDE_CLI_EFFORT_LEVELS)} (or leave unset to inherit the "
+        f"CLI default). Not coerced: the CLI would silently ignore a bad value "
+        f"and run at default effort."
+    )
+
 # RDG primary backend. Default "gemini" preserves existing behavior (Gemini
 # first, Claude as fallback on Gemini failure). Setting RDG_PRIMARY=claude
 # skips Gemini entirely and routes every call to the Claude CLI. Use case:

@@ -15,13 +15,21 @@ Configuration:
 - CLAUDE_CLI_PATH (optional) — override binary location; defaults to "claude"
 - CLAUDE_CLI_MODEL (optional) — model alias (sonnet/opus/haiku); defaults to "sonnet"
 - CLAUDE_CLI_TIMEOUT_SECONDS (optional) — per-call timeout; defaults to 600 (10 min)
+- CLAUDE_CLI_EFFORT (optional) — reasoning effort (low/medium/high/xhigh/max).
+  Unset omits the flag entirely and inherits the CLI default. Validated at
+  import in config.py; an invalid value raises rather than degrading silently.
 """
 
 import logging
 import shutil
 import subprocess
 
-from .config import CLAUDE_CLI_PATH, CLAUDE_CLI_MODEL, CLAUDE_CLI_TIMEOUT_SECONDS
+from .config import (
+    CLAUDE_CLI_PATH,
+    CLAUDE_CLI_MODEL,
+    CLAUDE_CLI_TIMEOUT_SECONDS,
+    CLAUDE_CLI_EFFORT,
+)
 
 _resolved_path = None
 _availability_logged = False
@@ -67,6 +75,23 @@ def is_available():
     return _resolve_cli() is not None
 
 
+def build_argv(cli):
+    """Build the print-mode argv: ``--print --model <model>``, plus
+    ``--effort <level>`` ONLY when an effort level is configured.
+
+    Omitting the flag when unset is deliberate — it inherits the CLI's own
+    default rather than this engine picking one. Flag order (model, then
+    effort) matches spawn-claude.ts so the two dispatch sites stay comparable.
+
+    Pure and separately testable: the argv contract is the part worth asserting,
+    and it can be checked without spawning a process or making an LLM call.
+    """
+    argv = [cli, "--print", "--model", CLAUDE_CLI_MODEL]
+    if CLAUDE_CLI_EFFORT is not None:
+        argv += ["--effort", CLAUDE_CLI_EFFORT]
+    return argv
+
+
 def call_claude(rendered_template):
     """
     Invoke the claude CLI in non-interactive print mode. Returns the response
@@ -88,7 +113,7 @@ def call_claude(rendered_template):
         return ""
     try:
         result = subprocess.run(
-            [cli, "--print", "--model", CLAUDE_CLI_MODEL],
+            build_argv(cli),
             input=rendered_template,
             capture_output=True,
             text=True,
