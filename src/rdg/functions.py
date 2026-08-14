@@ -669,3 +669,61 @@ FUNCTION_REGISTRY: Dict[str, Callable] = {
     "GLOBTOMARKDOWN": glob_to_markdown,
     "CREATEGEMINIPROMPT": create_gemini_prompt,
 }
+
+
+# ---------------------------------------------------------------------------
+# RDG_FORMULA_PATH — load formulas from outside this package
+# ---------------------------------------------------------------------------
+#
+# Lets a project add its own formulas without forking the engine. Set the env var to one or more
+# directories (os.pathsep separated); every module in them exporting a FORMULAS dict is merged into
+# FUNCTION_REGISTRY at import.
+#
+#     RDG_FORMULA_PATH=/path/to/my/formulas rdg my.rdg
+#
+# A formula module exports:
+#
+#     FORMULAS: Dict[str, Callable]      # name -> f(rdg_file: str, **kwargs) -> str
+#
+# matching what parser.py already calls — formula(rdg_file, **arguments) — whose return value is
+# written to the step's destination.
+#
+# Loading is FAIL-LOUD. A path that does not exist, a module that will not import, or a module
+# without a FORMULAS dict raises here rather than being skipped. A skipped module would leave its
+# formulas undefined, and the parser would later report them as an unknown formula — sending the
+# reader to their .rdg file to debug a typo that is not there.
+def _load_external_formulas():
+    import importlib.util
+    import os
+    import sys
+
+    raw = os.environ.get("RDG_FORMULA_PATH", "")
+    if not raw:
+        return
+    for directory in [d for d in raw.split(os.pathsep) if d]:
+        if not os.path.isdir(directory):
+            raise RuntimeError(
+                f"RDG_FORMULA_PATH names '{directory}', which is not a directory"
+            )
+        for entry in sorted(os.listdir(directory)):
+            if not entry.endswith(".py") or entry.startswith("_"):
+                continue
+            path = os.path.join(directory, entry)
+            mod_name = "rdg_external_" + entry[:-3].replace("-", "_")
+            spec = importlib.util.spec_from_file_location(mod_name, path)
+            if spec is None or spec.loader is None:
+                raise RuntimeError(f"could not load formula module {path}")
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[mod_name] = module
+            spec.loader.exec_module(module)
+            formulas = getattr(module, "FORMULAS", None)
+            if not isinstance(formulas, dict):
+                raise RuntimeError(
+                    f"{path} defines no FORMULAS dict — an external formula module must export "
+                    "FORMULAS: Dict[str, Callable]"
+                )
+            for name, fn in formulas.items():
+                FUNCTION_REGISTRY[name] = fn
+
+
+_load_external_formulas()
