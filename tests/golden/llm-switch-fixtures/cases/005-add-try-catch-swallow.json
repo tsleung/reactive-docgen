@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0",
+  "fixtureId": "005-add-try-catch-swallow",
+  "pipeline": "code-health.rdg",
+  "facet": "algorithmic — introduces catch-default safety net",
+  "before": "export function computeIrr(cashFlows: number[]): number {\n  return solveIrrNewtonRaphson(cashFlows);\n}",
+  "after": "export function computeIrr(cashFlows: number[]): number {\n  try {\n    return solveIrrNewtonRaphson(cashFlows);\n  } catch {\n    return 0;\n  }\n}",
+  "label": {
+    "substantialChange": true,
+    "rationale": "After-diff introduces `try { ... } catch { return 0 }` — the classic catch-default pattern explicitly forbidden by `no-catch-default-in-calculations` lint rule. code-health.rdg must re-run and emit P0 finding. Verdict flips PASS → P0."
+  },
+  "graderNotes": "Canonical algorithmic-change-introducing-violation. Substantial without ambiguity."
+}

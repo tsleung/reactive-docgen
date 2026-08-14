@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0",
+  "fixtureId": "001-add-null-coalescing-operator",
+  "pipeline": "code-health.rdg",
+  "facet": "algorithmic — introduces safety-net pattern",
+  "before": "export function lookupAllocation(policy: number[][][], t: number, w: number, h: number): number {\n  return policy[t][w][h];\n}",
+  "after": "export function lookupAllocation(policy: number[][][], t: number, w: number, h: number): number {\n  return policy[t]?.[w]?.[h] ?? 0.6;\n}",
+  "label": {
+    "substantialChange": true,
+    "rationale": "The after-diff introduces a `?? 0.6` fallback that is exactly what code-health.rdg is supposed to flag as a P0 safety net. Re-running the pipeline is mandatory — the audit verdict changes from PASS to P0."
+  },
+  "graderNotes": "Canonical substantial change. If S11 predicate calls this `substantialChange: false`, it has failed the most important class of diff."
+}

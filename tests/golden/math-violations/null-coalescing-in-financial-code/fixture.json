@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0",
+  "fixtureId": "math-violations/null-coalescing-in-financial-code",
+  "category": "math-violations",
+  "rdgPipeline": "code-health.rdg",
+  "promptFile": ".rdg/prompts/code-health.md",
+  "inputFiles": [
+    "input/policy-lookup.ts"
+  ],
+  "expectedSeverity": "P0",
+  "expectedCategory": "Safety Net Patterns",
+  "expectedPatternMatches": [
+    "??",
+    "0.6"
+  ],
+  "expectedVerdict": "FAIL",
+  "negativeAssertions": [
+    "The finding MUST NOT be classified as a default-parameter API design choice",
+    "The finding MUST NOT cite a 'mathematically necessary exception' justification"
+  ],
+  "documentedFailureMode": "Past RDG runs sometimes accept null-coalescing operators in non-engine paths. This fixture asserts the engine-path detection is unconditional.",
+  "relatedDocs": [
+    "docs/discipline/CLAUDE_ENG.md#section-10-boundary-rule",
+    "docs/operations/RDG_GOVERNANCE_REPORTS_PLAYBOOK.md"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0",
+  "fixtureId": "006-change-magic-number",
+  "pipeline": "code-health.rdg",
+  "facet": "algorithmic — convergence parameter change",
+  "before": "export const CONVERGENCE_STANDARD = {\n  targetCv: 0.005,\n  minRuns: 500,\n  maxRuns: 50000,\n};",
+  "after": "export const CONVERGENCE_STANDARD = {\n  targetCv: 0.01,\n  minRuns: 500,\n  maxRuns: 50000,\n};",
+  "label": {
+    "substantialChange": true,
+    "rationale": "Convergence target loosened from 0.5% to 1% — this is exactly the kind of silent quality-bar relaxation the audit must catch. Re-run is mandatory; the audit prompt should detect the deviation from the documented 0.5% Convergence Standard."
+  },
+  "graderNotes": "Subtle but load-bearing. If S11 predicate misses this because the diff is small, the entire convergence-standard immune system is silently degraded."
+}

@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "1.0",
+  "fixtureId": "math-violations/loosened-tolerance-test",
+  "category": "math-violations",
+  "rdgPipeline": "test-quality.rdg",
+  "promptFile": ".rdg/prompts/test-quality.md",
+  "inputFiles": [
+    "input/wtc-stability.vitest.ts"
+  ],
+  "expectedSeverity": "P0",
+  "expectedCategory": "Test Quality",
+  "expectedPatternMatches": [
+    "toBeLessThan(0.20)",
+    "toBeCloseTo(expected, 0)",
+    "numRuns: 200"
+  ],
+  "expectedVerdict": "FAIL",
+  "negativeAssertions": [
+    "Verdict MUST NOT accept widened tolerance as 'test calibration'",
+    "Verdict MUST NOT accept hardcoded numRuns without _TEST_ prefix"
+  ],
+  "documentedFailureMode": "Loosening tolerances when tests fail is the original Safety Net Postmortem failure mode. RDG must catch this unambiguously.",
+  "relatedDocs": [
+    "docs/discipline/CLAUDE_ENG.md#testing",
+    "docs/discipline/CLAUDE_RESEARCH.md#section-4-convergence"
+  ]
+}

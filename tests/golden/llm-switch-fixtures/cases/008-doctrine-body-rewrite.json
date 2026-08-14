@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0",
+  "fixtureId": "008-doctrine-body-rewrite",
+  "pipeline": "content-doctrine.rdg",
+  "facet": "algorithmic — doctrine body materially rewritten",
+  "before": "# Asset-Agnostic Policy\n\n**Last Updated:** 2026-04-10\n**Status:** Active\n\n## Body\n\nRtB optimizes allocation to the user's chosen asset. No bonds.",
+  "after": "# Asset-Agnostic Policy\n\n**Last Updated:** 2026-05-17\n**Status:** Active\n\n## Body\n\nRtB optimizes allocation to a user-curated portfolio of two or more risky assets plus risk-free cash. The deprecated two-asset model is retained for legacy comparison surfaces only.",
+  "label": {
+    "substantialChange": true,
+    "rationale": "Doctrine body materially rewrites the asset model (two-asset → user-curated multi-asset). content-doctrine.rdg's doctrine-health pass MUST re-run; this is exactly the kind of doctrine evolution that downstream audits depend on knowing about."
+  },
+  "graderNotes": "Real doctrinal change. Even if S11 predicate is uncertain, must default to re-run on doctrine-body diffs."
+}
