@@ -7,7 +7,14 @@ load_dotenv()
 LOG_FORMAT = '%(asctime)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 
-CACHE_DIR = ".gemini_cache"
+# Response cache location. Relative by default, which means it lands in whatever directory the
+# process happened to start in — so two runs from different working directories silently use
+# different caches, and two unrelated runs from the same directory share one. A caller that wants
+# the cache scoped to something meaningful (a pipeline, a project) had no way to say so except by
+# choosing its cwd, which is a coarse instrument when the cwd is also where relative paths resolve.
+#
+# The default is unchanged, so existing behaviour is identical when the variable is unset.
+CACHE_DIR = os.environ.get("RDG_CACHE_DIR", ".gemini_cache")
 os.makedirs(CACHE_DIR, exist_ok=True)
 
 THROTTLE_SECONDS = 1
