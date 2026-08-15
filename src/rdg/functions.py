@@ -146,11 +146,12 @@ def uppercase(rdg_file:str, **kwargs) -> str:
     
 def create_file(rdg_file:str, **kwargs) -> str:
     """
-    Creates a file with a given string.
-    
-    Args:
-    rdg_file (str): Path to the rdg file
-    content (str): content of the file to be created
+    Creates a file by rendering a template. To copy a file byte-faithfully use exactly
+    dest=CREATEFILE(content="{{src}}", src=path/to/file) — content is a TEMPLATE and is never
+    path-resolved (content=path/to/file writes the literal path string as the artifact), while
+    every other argument IS path-resolved, so src= carries the file's text into the template.
+
+    content=  the template; {{name}} placeholders are filled from the other arguments
     """
     
     

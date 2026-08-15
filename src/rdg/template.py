@@ -2,7 +2,12 @@ import re
 from string import Template
 
 # Mustache-style pattern: matches {{variable_name}}
-_MUSTACHE_RE = re.compile(r'\{\{([a-zA-Z_][a-zA-Z0-9_]*)\}\}')
+# Whitespace inside the braces is tolerated: {{name}} and {{ name }} are the same placeholder.
+# The strict form silently DID NOT MATCH a spaced placeholder, so {{ src }} rendered as its own
+# literal text — a template that looked one character-class away from correct produced a wrong
+# artifact that verified clean. An LLM authoring loop failed to converge on that difference across
+# four passes; a human squints at it too. Postel's law, scoped to whitespace only.
+_MUSTACHE_RE = re.compile(r'\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}')
 
 def render_template(template_str, input_data):
     """Render template by replacing placeholders with input_data values.
