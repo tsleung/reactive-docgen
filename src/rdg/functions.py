@@ -291,12 +291,12 @@ def gemini_prompt_from_file(rdg_file:str, use_filesystem_cache=True, **kwargs) -
 
 def create_markdown_from_directory(rdg_file: str, **kwargs) -> str:
     """
-    Recursively gathers files from a directory, creates a markdown file with file paths
-    and contents in code blocks.
+    Recursively gathers files from a directory as dest=DIRECTORYTOMARKDOWN(directory=path/to/dir),
+    creating a markdown file with file paths and contents in code blocks.
 
     Args:
         rdg_file (str): The path to the rdg file (used for relative path resolution).
-        directory_path (str): The path to the directory to process.
+        directory (str): The path to the directory to process.
     """
     if "directory" not in kwargs:
         raise RdgParserError("The parameter 'directory' is required in DIRECTORYTOMARKDOWN")
