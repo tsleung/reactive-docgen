@@ -207,6 +207,25 @@ Replace `sample.rdg` with the path to the `.rdg` file you want to validate. The 
 
 The tool is currently configured to use the `gemini-2.0-flash-exp` model. This can be changed in `src/rdg/gemini.py`.
 
+### Parallel execution (`RDG_JOBS`)
+
+Steps run top to bottom — that stays the authoring contract. `RDG_JOBS` lets the engine notice when
+line order over-serializes (five independent model calls in a row cost 5× wall clock) and run
+independent steps concurrently, without the author declaring anything:
+
+```bash
+RDG_JOBS=plan python -m src.rdg.rdg_cli my.rdg   # print the derived waves; execute nothing
+RDG_JOBS=4    python -m src.rdg.rdg_cli my.rdg   # run independent steps in dependency waves
+```
+
+Unset (or `1`), the serial loop runs exactly as always. The rules are mechanical: step B depends on
+step A when one of B's argument values names A's destination; formulas that read things their
+arguments do not name (the glob/directory walkers, and every `RDG_FORMULA_PATH` external formula)
+run as barriers; a duplicate destination, forward reference, or unparseable line makes the whole
+file fall back to serial, with the reason on stderr. A read-fence errors loudly if a step ever reads
+another step's destination without a dependency edge — a missed edge must never become a silent
+stale read. Artifacts are byte-identical to a serial run.
+
 ## License
 
 This project is licensed under the **GNU General Public License v3.0** (GPLv3).

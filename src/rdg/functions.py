@@ -1,3 +1,4 @@
+import contextvars
 import os
 import glob as glob_module
 from pathlib import PurePath
@@ -7,8 +8,35 @@ from typing import Dict, Callable, Any
 import logging
 from ..llm.ollama import ollama_call
 
+# The read-fence, armed only by the RDG_JOBS wave runner (parser._run_step) and only for the
+# duration of one formula call. Serial execution never sets it, so serial behavior is untouched.
+#
+# It exists because a missed dependency edge in parallel mode does not crash: the consumer either
+# reads the previous run's stale bytes or — because destinations are deleted before their producer
+# writes — finds nothing and this function returns the path itself as literal text, which a model
+# then answers fluently. Both produce a plausible artifact that exits 0 and poisons the cache.
+# The fence turns that silence into a named error at the exact moment of the read: a step touching
+# ANY step's destination that is not among its declared ancestors is a scheduling bug, reported as
+# reader, writer, and the missing edge.
+#
+# Coverage is process_input only — the choke point through which every KNOWN_SAFE formula resolves
+# path-valued arguments. Formulas outside KNOWN_SAFE run as barriers with nothing else in flight,
+# so their unfenced reads cannot race.
+_READ_FENCE = contextvars.ContextVar("rdg_read_fence", default=None)
+
+
 def process_input(input_arg, file_dir):
     file_path = os.path.join(file_dir, input_arg)
+    fence = _READ_FENCE.get()
+    if fence is not None:
+        all_dests, allowed, reader = fence
+        normalized = os.path.normpath(file_path)
+        if normalized in all_dests and normalized not in allowed:
+            raise RdgParserError(
+                f"read fence: {reader} read '{input_arg}', which is written by "
+                f"{all_dests[normalized]} with no dependency edge between them. "
+                f"The parallel plan missed this edge; running serially is safe."
+            )
     logging.info(f"Checking for file: {file_path}")
     if os.path.exists(file_path):
         with open(file_path, 'r') as f:
