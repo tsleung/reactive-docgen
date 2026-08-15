@@ -4,6 +4,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from .functions import FUNCTION_REGISTRY, RdgParserError, _READ_FENCE
+from .events import emit
 
 def parse_rdg_line(line: str, file_dir: str = ".") -> tuple[str, str, dict[str, Any]]:
     """Parses a single line of the rdg file."""
@@ -51,7 +52,7 @@ def parse_rdg_line(line: str, file_dir: str = ".") -> tuple[str, str, dict[str, 
     return output_file, formula_name, arguments
 
 
-def _run_step(rdg_file: str, file_dir: str, line: str, fence=None) -> int:
+def _run_step(rdg_file: str, file_dir: str, line: str, fence=None, progress=None) -> int:
     """Execute one line of an rdg file. Returns 1 if the step failed, else 0.
 
     This is the serial loop body, extracted verbatim so the serial path and the RDG_JOBS wave
@@ -63,12 +64,19 @@ def _run_step(rdg_file: str, file_dir: str, line: str, fence=None) -> int:
     step_label). It arms the read-fence in process_input for the duration of the formula call.
     ContextVars are per-thread, and this runs inside the worker thread, so arming it here
     scopes it to exactly this step.
+
+    `progress` is (index, total), 1-based, when the caller knows it. Both runners pass it; step
+    events (events.py, RDG_EVENTS=jsonl) carry it so a live reader can render [i/n]. Emission
+    lives HERE so the two runners cannot drift on observability either.
     """
     output_path = None
+    formula_name = None
+    i, n = progress if progress is not None else (None, None)
     try:
         output_file, formula_name, arguments = parse_rdg_line(line, file_dir)
         if not output_file:  # skip empty lines or comments
             return 0
+        emit("step_start", i=i, n=n, dest=output_file, formula=formula_name)
 
         # Resolved before the formula is looked up, so the error handlers always have a
         # path to write to. An unknown formula used to raise KeyError here, and the
@@ -96,19 +104,36 @@ def _run_step(rdg_file: str, file_dir: str, line: str, fence=None) -> int:
 
         with open(output_path, 'w') as outfile:
             outfile.write(result)
+        emit("step_end", i=i, n=n, dest=output_file, formula=formula_name, ok=True, wrote=[output_file])
         return 0
     except KeyError as e:
         print(f"Unknown formula on line '{line.strip()}': {e}", file=sys.stderr)
         _write_error(output_path, f"Unknown formula: {e}")
+        emit("step_end", i=i, n=n, dest=_dest_or_none(output_path, file_dir), formula=formula_name, ok=False, wrote=_wrote(output_path, file_dir))
         return 1
     except RdgParserError as e:
         print(f"Error processing line '{line.strip()}': {e}", file=sys.stderr)
         _write_error(output_path, e)
+        emit("step_end", i=i, n=n, dest=_dest_or_none(output_path, file_dir), formula=formula_name, ok=False, wrote=_wrote(output_path, file_dir))
         return 1
     except Exception as e:
         print(f"An unexpected error occurred processing line '{line.strip()}': {e}", file=sys.stderr)
         _write_error(output_path, e)
+        emit("step_end", i=i, n=n, dest=_dest_or_none(output_path, file_dir), formula=formula_name, ok=False, wrote=_wrote(output_path, file_dir))
         return 1
+
+
+def _dest_or_none(output_path, file_dir):
+    """The step's dest relative to its file_dir, or None when the line never parsed far enough."""
+    if output_path is None:
+        return None
+    return os.path.relpath(output_path, file_dir)
+
+
+def _wrote(output_path, file_dir):
+    """What a FAILED step actually wrote: its destination (## ERROR bytes) when one was resolved."""
+    dest = _dest_or_none(output_path, file_dir)
+    return [dest] if dest is not None else []
 
 
 def process_rdg_file(rdg_file: str, file_dir: str = ".") -> int:
@@ -116,11 +141,21 @@ def process_rdg_file(rdg_file: str, file_dir: str = ".") -> int:
     failures = 0
     try:
         with open(rdg_file, 'r') as f:
-            for line in f:
-                # Parsing happens INSIDE the per-line try (in _run_step). Outside it, a single
-                # malformed line or unknown formula raised past the loop to the file-level handler
-                # below, which silently abandoned every remaining line — and the CLI still
-                # reported success.
+            lines = f.readlines()
+        # Steps are counted up front so progress events can say [i/n]; comments and blanks are
+        # excluded from n the same way _run_step skips them, so n matches what actually runs.
+        real = [ln for ln in lines if ln.strip() and not ln.strip().startswith('#')]
+        total = len(real)
+        step_no = 0
+        for line in lines:
+            # Parsing happens INSIDE the per-line try (in _run_step). Outside it, a single
+            # malformed line or unknown formula raised past the loop to the file-level handler
+            # below, which silently abandoned every remaining line — and the CLI still
+            # reported success.
+            if line.strip() and not line.strip().startswith('#'):
+                step_no += 1
+                failures += _run_step(rdg_file, file_dir, line, progress=(step_no, total))
+            else:
                 failures += _run_step(rdg_file, file_dir, line)
     except FileNotFoundError:
         print(f"Error: RDF file not found at '{rdg_file}'", file=sys.stderr)
@@ -320,7 +355,7 @@ def process_rdg_file_parallel(rdg_file: str, file_dir: str = ".", jobs: int = 2)
                 s = steps[i]
                 allowed = {steps[a]["norm"] for a in ancestors[i]} | {s["norm"]}
                 fence = (all_dests, allowed, f"step {i + 1} ({s['dest']})")
-                futures.append(pool.submit(_run_step, rdg_file, file_dir, s["line"], fence))
+                futures.append(pool.submit(_run_step, rdg_file, file_dir, s["line"], fence, (i + 1, len(steps))))
             for fut in futures:
                 failures += fut.result()
     return failures
