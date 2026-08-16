@@ -34,7 +34,7 @@ api_key = os.environ.get("GEMINI_API_KEY")
 # ladder is defined ONCE here, above either backend's config, and each backend maps it to its own
 # mechanism: the Claude CLI takes it verbatim as `--effort` (below), Gemini maps it to a thinking
 # level (gemini.py). Levels are the ones the Claude CLI already publishes, and are mirrored in
-# rtb-manual's projects/rtb-cockpit/sidecar/spawn-claude.ts.
+# a downstream consumer's own spawn wrapper.
 #
 # `effort` is provider-NEUTRAL — it is a level, not an id — so it follows a call to whichever
 # backend runs it. `model` is provider-SCOPED and is never translated across providers: a Gemini
@@ -106,8 +106,8 @@ CLAUDE_CLI_TIMEOUT_SECONDS = int(os.environ.get("CLAUDE_CLI_TIMEOUT_SECONDS", "6
 # The empty string is INVALID, not "unset": `CLAUDE_CLI_EFFORT=` in a wrapper
 # is a mistake worth surfacing, not a request for default behavior.
 #
-# Resolution + validation contract deliberately mirrors rtb-manual's
-# projects/rtb-cockpit/sidecar/spawn-claude.ts (`CLAUDE_CLI_EFFORT` →
+# Resolution + validation contract deliberately mirrors a consumer's
+# established spawn wrapper (`CLAUDE_CLI_EFFORT` →
 # `--effort`, never coerced, never forwarded) so the two dispatch mechanisms
 # agree. Ladder per docs/operations/MODEL_ROUTING.md.
 CLAUDE_CLI_EFFORT_LEVELS = EFFORT_LEVELS  # one ladder, engine-wide; name kept for readers

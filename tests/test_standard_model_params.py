@@ -369,7 +369,7 @@ def test_nonzero_exit_reports_the_stdout_tail(tmp_path: Path) -> None:
 
     `claude --print --output-format json` puts its error payload on stdout, so a stderr-only tail
     reported every real failure as "exit 1:" with nothing after the colon — observed twice on
-    rtb-runner/graph/migration-report.rdg. The cause was on stdout the whole time and the report
+    a consumer pipeline. The cause was on stdout the whole time and the report
     dropped it, leaving an operator with a failure that names no reason.
 
     Unconditional, unlike the events: error fidelity is not logging. A report that omits the cause

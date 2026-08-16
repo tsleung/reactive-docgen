@@ -150,7 +150,7 @@ def call_claude(rendered_template, model=None, effort=None):
             # BOTH streams. The CLI writes its error payload to STDOUT under
             # `--output-format json`, so a stderr-only tail reported every real
             # failure as "exit 1:" with nothing after the colon — reproduced
-            # twice downstream on rtb-runner/graph/migration-report.rdg. The
+            # twice in a downstream consumer's live pipeline. The
             # cause was on stdout the whole time, and the report dropped it.
             stderr_tail = (result.stderr or "").strip()[-500:]
             stdout_tail = (result.stdout or "").strip()[-500:]

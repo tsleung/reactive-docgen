@@ -122,8 +122,8 @@ def emit_primitive(*, model, effort, backend, timeout_s=None, formula=None,
     honestly emits two. A cache hit emits none, because no call was made — a line for a call that
     did not happen is the phantom this engine refuses in its artifacts.
 
-    RELATION TO THE CONSUMER TWIN. rtb-manual's external CLAUDECODE formula
-    (`dcc/rtb-pic/rdg/formulas/claude_code.py`) emits the same record and is where the shape comes
+    RELATION TO THE CONSUMER TWIN. a consumer external CLAUDECODE formula
+    (`a consumer tree`) emits the same record and is where the shape comes
     from, but it is NOT identical and the differences are deliberate: it writes UNCONDITIONALLY,
     this one is gated on the RDG_EVENTS opt-in (founder 2026-08-16 — engine-side logging is
     optional, and a consumer that never asked for a machine stream keeps a clean stderr; the

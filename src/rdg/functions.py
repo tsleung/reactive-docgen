@@ -117,7 +117,7 @@ def _reject_unknown_kwargs(kwargs: dict, allowed: set, fn_label: str) -> None:
     word). Surfacing unknown kwargs makes such typos/contract drift visible at
     parse time instead of producing phantom output.
 
-    Allowlists verified zero-risk against every live ``apps/rtb-manual/.rdg``
+    Allowlists verified zero-risk against every live consumer ``.rdg``
     usage on 2026-06-08 (GLOBTOMARKDOWN: {pattern, exclude}; FILESTOMARKDOWN:
     {files, exclude} — no other kwarg appears in production).
     """
@@ -184,7 +184,7 @@ def _reserved_name_hint(error) -> str:
     about the symptom, pointing nowhere near the cause.
 
     Measured, not hypothetical: two live steps do exactly this
-    (rtb-manual `.rdg/asset-3-holdings.rdg:39,51`, whose prompt references `{{model}}`). The
+    (two live consumer steps whose prompt referenced `{{model}}` as template data). The
     failure is loud either way; this makes it self-explaining, and it fires only on the exact
     symptom, so there is nothing to misdetect.
     """

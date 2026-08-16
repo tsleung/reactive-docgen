@@ -365,14 +365,14 @@ def validate_switch_case(case_path: Path) -> None:
 
 
 def find_rtb_manual_root() -> Path | None:
-    """Locate the rtb-manual repo by walking up from this file.
+    """Locate the a consumer repo by walking up from this file.
 
-    rtb-manual is the SIBLING of rdg-notebook in the parent monorepo:
-        <monorepo>/apps/rtb-manual/
+    a consumer is the SIBLING of rdg-notebook in the parent monorepo:
+        <monorepo>/a consumer repo
         <monorepo>/rdg-notebook/
     """
     # tests/ -> reactive-docgen/ -> rdg-notebook/ -> monorepo root
-    candidate = TESTS_DIR.parent.parent.parent / "apps" / "rtb-manual"
+    candidate = TESTS_DIR.parent.parent.parent / "apps" / "a consumer
     if candidate.is_dir() and (candidate / "package.json").is_file():
         return candidate
     return None
@@ -384,7 +384,7 @@ def run_live_pipeline(fixture_dir: Path, fixture: dict[str, Any]) -> str:
     Returns the verbatim verdict text.
 
     Note: live mode is an OPT-IN integration test. It requires:
-      - rtb-manual sibling repo
+      - a consumer sibling repo
       - rdg-notebook bin/rdg executable
       - claude CLI on PATH (RDG_PRIMARY=claude)
       - RDG cache populated or willingness to pay API call
@@ -396,8 +396,8 @@ def run_live_pipeline(fixture_dir: Path, fixture: dict[str, Any]) -> str:
     rtb_root = find_rtb_manual_root()
     if rtb_root is None:
         raise GoldenDivergenceError(
-            f"Live mode requires rtb-manual sibling. Searched at "
-            f"{TESTS_DIR.parent.parent.parent / 'apps' / 'rtb-manual'}"
+            f"Live mode requires a consumer sibling. Searched at "
+            f"{TESTS_DIR.parent.parent.parent / 'apps' / 'a consumer}"
         )
 
     rdg_bin = TESTS_DIR.parent / "bin" / "rdg"
