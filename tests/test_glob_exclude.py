@@ -21,7 +21,7 @@ Required behavior (this suite's contract):
     (fnmatch does not; we use PurePath.full_match / a guarded fallback).
   - Excluding nothing leaves every file present (no over-filter).
   - Unknown kwargs fail loud (raise RdgParserError) — the allowlists are
-    verified zero-risk against every live apps/rtb-manual/.rdg usage.
+    verified zero-risk against every live a consumer repo usage.
 
 This is a STRUCTURAL test — no network, no LLM, no credentials. It writes real
 fixture files into a pytest tmp_path and inspects the emitted markdown.

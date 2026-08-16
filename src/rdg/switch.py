@@ -1,8 +1,8 @@
 """
 RDG LLM-Switch Predicate (S11) — substantial-change classifier.
 
-Spec: apps/rtb-manual/docs/plans/2026-05-17_codification-doctrine-substrate-health.md §S11
-Plan reference: apps/rtb-manual/docs/notes/2026-05-18_S10_RDG_GOLDEN_TEST_SUITE.md (S10 regression anchor)
+Spec: a consumer repo §S11
+Plan reference: a consumer repo (S10 regression anchor)
 Story: docs/coordination/items/wo-task-codification-doctrine-s11-rdg-llm-switch-predicate.work.json
 
 What this module does
