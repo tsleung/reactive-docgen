@@ -92,13 +92,13 @@ samples/single-file.md=RDGTOFILE(output_file="all_rdg_output.md")
 **Available Formulas:**
 
 *   `UPPERCASE`: Converts the content of a file to uppercase.  Takes `file` (path to the input file).
-*   `GEMINIPROMPT`: Uses the Gemini LLM to process text. Takes `template` (a string containing the template to use on the LLM, such as `Summarize the following: $input`, where `$input` is replaced by the content of the input file), and several file inputs (or strings) as keyword arguments.
+*   `GEMINIPROMPT`: Uses the Gemini LLM to process text. Takes `template` (a string containing the template to use on the LLM, such as `Summarize the following: $input`, where `$input` is replaced by the content of the input file), and several file inputs (or strings) as keyword arguments. Also takes the standard `model=` / `effort=` parameters (see below).
 *   `GEMINIPROMPTFILE`: Same as `GEMINIPROMPT`, but takes the template from the specified template file path using the `template_file` argument.
 *   `OLLAMAPROMPT`: Uses the Ollama LLM to process text.  Takes a `template` argument similar to `GEMINIPROMPT`.
 *   `CREATEFILE`: Creates a file with the given content. Takes a `content` argument with the string that will be written in the output file.
 *   `DIRECTORYTOMARKDOWN`: Takes a `directory` path as an argument and outputs the paths and content of all files (recursively) inside that directory in markdown format. Skips binary files and outputs an error message instead.
 *   `FILESTOMARKDOWN`: Takes a `files` argument, which is a comma-separated list of file paths. Outputs the paths and content of the specified files in markdown format.
-*   `SUMMARIZE`: Generates a summary of a file using the LLM. Takes a `file` argument (path to the input file) and an optional `summary_type` argument (either "short" or "long").
+*   `SUMMARIZE`: Generates a summary of a file using the LLM. Takes a `file` argument (path to the input file) and an optional `summary_type` argument (either "short" or "long"). Also takes the standard `model=` / `effort=` parameters (see below).
 *   `RDGTOFILE`: Converts all the output files of an RDG file into a single markdown file. Takes an `output_file` argument specifying the name of the output markdown file.
 
 ### 7. Running the Script
@@ -203,9 +203,61 @@ Replace `sample.rdg` with the path to the `.rdg` file you want to validate. The 
 *   **`RdgParserError: Template must be supplied when using the GEMINIPROMPT`**: Include the `template` argument when calling `GEMINIPROMPT`.
 *   **Permissions Issue:** Use `chmod +x <script_name>.sh` to grant execute permissions to shell scripts.
 
-### Gemini Model
+### Standard model parameters (`model=` / `effort=`)
 
-The tool is currently configured to use the `gemini-2.0-flash-exp` model. This can be changed in `src/rdg/gemini.py`.
+Every formula that calls a model takes the same two parameters, so switching models is an edit to
+the line rather than a different mechanism per formula:
+
+```
+out/review.md=GEMINIPROMPT(template="Review this: {{x}}", x=in.md, model="gemini-3-pro-preview", effort="max")
+out/gather.md=GEMINIPROMPT(template="List the files: {{x}}", x=in.md)      # defaults
+```
+
+They are **reserved step parameters on model formulas** (`GEMINIPROMPT`, `GEMINIPROMPTFILE`,
+`SUMMARIZE`): the parser lifts them out of the step's arguments before the rest becomes template
+data, so on those formulas `model=` always means the model and never a `{{model}}` value.
+Non-model formulas **reject** them as unknown parameters, which keeps the names meaningful —
+`CREATEFILE` in particular keeps its contract that *every* argument other than `content=` is
+template data. Externally loaded formulas (`RDG_FORMULA_PATH`) are unaffected unless they opt in
+by exporting `MODEL_FORMULAS` beside `FORMULAS`.
+
+**Effort ladder.** One vocabulary; each backend maps it to its own mechanism. An unknown level is
+refused at the line, never coerced — both providers accept a bad level and quietly run at their
+own default.
+
+| `effort=` | Claude CLI | Gemini (`ThinkingConfig.thinking_level`) |
+|-----------|------------|------------------------------------------|
+| `low`     | `--effort low`    | `LOW` |
+| `medium`  | `--effort medium` | `MEDIUM` |
+| `high`    | `--effort high`   | `HIGH` |
+| `xhigh`   | `--effort xhigh`  | `HIGH` (saturates — Gemini's ladder ends here) |
+| `max`     | `--effort max`    | `HIGH` (saturates) |
+| omitted   | flag omitted      | no thinking config sent |
+
+The Gemini column is name-preserving on purpose: an event line reading `effort=high` must not mean
+`MEDIUM`. Gemini's `MINIMAL` is unreachable, because this ladder has no rung below `low`.
+
+**Fallback substitution.** `effort` is a level, so it follows the call to whichever backend runs
+it. `model` is a provider-scoped id, so it does not: when a Gemini call fails and the engine falls
+back to the Claude CLI, that call uses `CLAUDE_CLI_MODEL` and the substitution is logged as a
+warning naming both models. A Gemini model id has no meaning to the Claude CLI.
+
+**Defaults**, in order of precedence — step parameter, environment, built-in:
+
+| Variable | Applies to | Default |
+|----------|-----------|---------|
+| `RDG_GEMINI_MODEL`  | Gemini calls | `gemini-3-flash-preview` |
+| `RDG_GEMINI_EFFORT` | Gemini calls | unset (provider default) |
+| `CLAUDE_CLI_MODEL`  | Claude CLI calls | `sonnet` |
+| `CLAUDE_CLI_EFFORT` | Claude CLI calls | unset (CLI default) |
+
+(`RDG_`-prefixed because a bare `GEMINI_MODEL` would collide with Google's own `gemini-cli`.) A
+malformed effort in either env var raises at import rather than starting a run at the wrong level.
+
+Responses are cached by prompt **and** the model/effort identity, so changing either asks the
+model again instead of replaying another model's answer. With `RDG_EVENTS=jsonl` set, each real
+provider call emits one `{"ev":"primitive",…}` line on stderr naming the model, effort, backend
+and timeout actually used — a cache hit emits nothing, because no call was made.
 
 ### Parallel execution (`RDG_JOBS`)
 
