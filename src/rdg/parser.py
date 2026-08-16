@@ -3,8 +3,61 @@ import os
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
-from .functions import FUNCTION_REGISTRY, RdgParserError, _READ_FENCE
+from .functions import (
+    FUNCTION_REGISTRY,
+    MODEL_FORMULAS,
+    BUILTIN_FORMULAS,
+    STANDARD_PARAM_NAMES,
+    RdgParserError,
+    _READ_FENCE,
+)
+from .config import validate_effort
 from .events import emit
+
+
+def _pop_standard_params(formula_name: str, arguments: dict) -> dict:
+    """Remove `model=`/`effort=` from a step's arguments and return them as their own kwargs.
+
+    LIFTING them out is what lets the parser see them at all, so validation and refusal happen
+    once, here, rather than being re-implemented by every formula. Forwarding them as their own
+    keyword arguments is what keeps them out of content: a model formula funnels its remaining
+    arguments into template data, so on those formulas these two names are RESERVED — dispatch,
+    never a `{{model}}` value. Each built-in states the same guarantee in its signature by naming
+    the parameters; doing it here as well is what makes the rule uniform, including for external
+    formulas that declare themselves and take only **kwargs.
+
+    REFUSED on a formula this engine ships that is not model-class: an unknown parameter is how
+    the engine says a name means nothing here (functions._reject_unknown_kwargs), and a `model=`
+    silently absorbed into CREATEFILE's template data is precisely the failure that rule exists
+    for. An EXTERNALLY loaded formula that has not declared itself model-class is passed through
+    UNTOUCHED — the engine cannot know another module's parameter vocabulary, and refusing a call
+    that works today on a guess is the worse error. External modules opt in by exporting
+    MODEL_FORMULAS beside FORMULAS.
+
+    EFFORT IS VALIDATED HERE, at the line the author wrote, rather than at the provider: both
+    providers accept a bad level and keep going (the Claude CLI warns on stderr and runs at its
+    default; Gemini receives no thinking config), so the pipeline would exit 0 reporting an effort
+    it never used.
+    """
+    present = {key: arguments.pop(key) for key in STANDARD_PARAM_NAMES if key in arguments}
+    if not present:
+        return {}
+    if formula_name not in MODEL_FORMULAS:
+        if formula_name in BUILTIN_FORMULAS:
+            named = ", ".join(f"'{k}'" for k in sorted(present))
+            model_formulas = ", ".join(sorted(MODEL_FORMULAS & BUILTIN_FORMULAS))
+            raise RdgParserError(
+                f"Unknown parameter {named} in {formula_name} — model= and effort= are standard "
+                f"parameters of the model formulas ({model_formulas}); {formula_name} does not "
+                f"call a model"
+            )
+        return present  # external and undeclared: not this engine's vocabulary to interpret
+    if "effort" in present:
+        try:
+            validate_effort(present["effort"], f"effort= in {formula_name}")
+        except ValueError as exc:
+            raise RdgParserError(str(exc)) from exc
+    return present
 
 def parse_rdg_line(line: str, file_dir: str = ".") -> tuple[str, str, dict[str, Any]]:
     """Parses a single line of the rdg file."""
@@ -84,6 +137,11 @@ def _run_step(rdg_file: str, file_dir: str, line: str, fence=None, progress=None
         output_path = os.path.join(file_dir, output_file)
         formula = FUNCTION_REGISTRY[formula_name]
 
+        # Standard parameters come out of the argument bag BEFORE anything is deleted or written:
+        # they are the step's dispatch policy, not its content, and a bad level must not cost the
+        # destination's previous bytes any later than a bad line already does.
+        standard = _pop_standard_params(formula_name, arguments)
+
         # Create the output directory if it doesn't exist
         output_dir = os.path.dirname(output_path)
         if output_dir and not os.path.exists(output_dir):
@@ -96,11 +154,11 @@ def _run_step(rdg_file: str, file_dir: str, line: str, fence=None, progress=None
         if fence is not None:
             token = _READ_FENCE.set(fence)
             try:
-                result = formula(rdg_file, **arguments)
+                result = formula(rdg_file, **standard, **arguments)
             finally:
                 _READ_FENCE.reset(token)
         else:
-            result = formula(rdg_file, **arguments)
+            result = formula(rdg_file, **standard, **arguments)
 
         with open(output_path, 'w') as outfile:
             outfile.write(result)

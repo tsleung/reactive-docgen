@@ -4,6 +4,7 @@ import glob as glob_module
 from pathlib import PurePath
 from .template import render_template
 from .gemini import memoized_gemini_call, load_from_cache, save_to_cache, get_cache_key
+from .events import formula_context
 from typing import Dict, Callable, Any
 import logging
 from ..llm.ollama import ollama_call
@@ -168,32 +169,82 @@ def create_file(rdg_file:str, **kwargs) -> str:
     
     return file_content
 
-def gemini_prompt_template(rdg_file:str, use_filesystem_cache=True, **kwargs) -> str:
-  
+# The standard parameters. Reserved on model formulas (MODEL_FORMULAS, below): the parser lifts
+# them out of a step's arguments before the rest becomes template data, so on those formulas the
+# two names always mean dispatch and never content.
+STANDARD_PARAM_NAMES = ("model", "effort")
+
+
+def _reserved_name_hint(error) -> str:
+    """A note appended when a template asks for a placeholder that is now a standard parameter.
+
+    `model=` and `effort=` used to be ordinary arguments on a model formula, which meant they
+    became template data like any other. They are now reserved, so a step that meant "the file
+    describing our domain model" gets a bare "Template placeholder not found: 'model'" — an error
+    about the symptom, pointing nowhere near the cause.
+
+    Measured, not hypothetical: two live steps do exactly this
+    (rtb-manual `.rdg/asset-3-holdings.rdg:39,51`, whose prompt references `{{model}}`). The
+    failure is loud either way; this makes it self-explaining, and it fires only on the exact
+    symptom, so there is nothing to misdetect.
+    """
+    text = str(error)
+    for name in STANDARD_PARAM_NAMES:
+        if f"Template placeholder not found: '{name}'" in text:
+            return (
+                f" — NOTE: `{name}=` is now a STANDARD PARAMETER on model formulas (it selects "
+                f"the {'model' if name == 'model' else 'reasoning effort'} for this step) and is "
+                f"no longer passed to the template. If this step meant a file, rename the "
+                f"argument — e.g. `domain_{name}=` — and update the `{{{{{name}}}}}` placeholder "
+                f"to match."
+            )
+    return ""
+
+
+def _model_call(formula: str, rendered_template: str, model=None, effort=None,
+                use_filesystem_cache=True) -> str:
+    """The ONE place a built-in formula reaches a model.
+
+    Cache first (byte-equality on prompt + call identity), then at most one real invocation. Every
+    model formula shares this body so the standard parameters, the cache identity and the
+    primitive event cannot drift between them — the same reason _run_step is shared by the serial
+    and wave runners.
+
+    The primitive stderr event is emitted by the backend that actually runs (gemini.py /
+    claude.py), NOT here, so a cache hit emits nothing: a line for a call that did not happen is
+    the phantom this engine refuses in its artifacts. `formula` reaches that emission through a
+    ContextVar rather than through the call, which keeps it off the memoisation key.
+    """
+    cache_key = get_cache_key(rendered_template, model, effort)
+    cached_request, cached_response = load_from_cache(cache_key)
+    if cached_response:
+        logging.info(f"Loaded from cache (key: {cache_key})")
+        return cached_response
+    logging.info(f"API Call (key: {cache_key})")
+    with formula_context(formula):
+        response_text = memoized_gemini_call(rendered_template, model, effort)
+    if use_filesystem_cache:
+        save_to_cache(cache_key, rendered_template, response_text)
+    return response_text
+
+
+def gemini_prompt_template(rdg_file:str, use_filesystem_cache=True, model=None, effort=None,
+                           **kwargs) -> str:
+
   if "template" not in kwargs:
       raise RdgParserError("Template must be supplied when using the GEMINIPROMPT")
   template = kwargs.pop("template")
 
   input_data = kwargs
   rendered_template = render_template(template, input_data)
-  
+
   logging.info(f"Rendered template:\n{rendered_template}")
 
   try:
-    cache_key = get_cache_key(rendered_template)
-    cached_request, cached_response = load_from_cache(cache_key)
-
-    if cached_response:
-        # logging.info(f"Loaded from cache (key: {cache_key})")
-        response_text = cached_response
-    else:
-        # logging.info(f"API Call (key: {cache_key})")
-        response_text = memoized_gemini_call(rendered_template)
-        if use_filesystem_cache:
-            save_to_cache(cache_key, rendered_template, response_text)
-    return response_text
+    return _model_call("GEMINIPROMPTTEMPLATE", rendered_template, model, effort,
+                       use_filesystem_cache)
   except Exception as e:
-      raise RdgParserError(f"Error during LLM call: {e}")
+      raise RdgParserError(f"Error during LLM call: {e}{_reserved_name_hint(e)}")
 
 def ollama_prompt(rdg_file:str, use_filesystem_cache=True, **kwargs) -> str:
   """Sends the file content to an LLM and returns the response using caching."""
@@ -217,8 +268,15 @@ def ollama_prompt(rdg_file:str, use_filesystem_cache=True, **kwargs) -> str:
   except Exception as e:
       raise RdgParserError(f"Error during LLM call: {e}")
 
-def gemini_prompt(rdg_file:str, use_filesystem_cache=True, **kwargs) -> str:
-    """Sends the file content to an LLM and returns the response using caching."""
+def gemini_prompt(rdg_file:str, use_filesystem_cache=True, model=None, effort=None,
+                  **kwargs) -> str:
+    """Sends the file content to an LLM and returns the response using caching.
+
+    template=  the prompt; {{name}}/$name placeholders are filled from the other arguments
+    model=     model id for this step (default: $RDG_GEMINI_MODEL, else the engine default)
+    effort=    reasoning effort: low | medium | high | xhigh | max (default: $RDG_GEMINI_EFFORT,
+               else the provider's own default)
+    """
 
     try:
         if "template" not in kwargs:
@@ -234,23 +292,20 @@ def gemini_prompt(rdg_file:str, use_filesystem_cache=True, **kwargs) -> str:
 
         logging.info(f"Rendered template:\n{rendered_template}")
 
-        cache_key = get_cache_key(rendered_template)
-        cached_request, cached_response = load_from_cache(cache_key)
-
-        if cached_response:
-            logging.info(f"Loaded from cache (key: {cache_key})")
-            response_text = cached_response
-        else:
-            logging.info(f"API Call (key: {cache_key})")
-            response_text = memoized_gemini_call(rendered_template)
-            if use_filesystem_cache:
-                save_to_cache(cache_key, rendered_template, response_text)
-        return response_text
+        return _model_call("GEMINIPROMPT", rendered_template, model, effort, use_filesystem_cache)
     except Exception as e:
-        raise RdgParserError(f"Error during LLM call: {e}")
+        raise RdgParserError(f"Error during LLM call: {e}{_reserved_name_hint(e)}")
 
-def gemini_prompt_from_file(rdg_file:str, use_filesystem_cache=True, **kwargs) -> str:
-    """Sends the file content to an LLM and returns the response using caching."""
+def gemini_prompt_from_file(rdg_file:str, use_filesystem_cache=True, model=None, effort=None,
+                            **kwargs) -> str:
+    """Sends the file content to an LLM and returns the response using caching.
+
+    template_file=  path to the prompt template; its placeholders are filled from the other
+                    arguments
+    model=          model id for this step (default: $RDG_GEMINI_MODEL, else the engine default)
+    effort=         reasoning effort: low | medium | high | xhigh | max (default: $RDG_GEMINI_EFFORT,
+                    else the provider's own default)
+    """
 
     try:
         if "template_file" not in kwargs:
@@ -274,20 +329,10 @@ def gemini_prompt_from_file(rdg_file:str, use_filesystem_cache=True, **kwargs) -
 
         logging.info(f"Rendered template:\n{rendered_template}")
 
-        cache_key = get_cache_key(rendered_template)
-        cached_request, cached_response = load_from_cache(cache_key)
-
-        if cached_response:
-            logging.info(f"Loaded from cache (key: {cache_key})")
-            response_text = cached_response
-        else:
-            logging.info(f"API Call (key: {cache_key})")
-            response_text = memoized_gemini_call(rendered_template)
-            if use_filesystem_cache:
-                save_to_cache(cache_key, rendered_template, response_text)
-        return response_text
+        return _model_call("GEMINIPROMPTFILE", rendered_template, model, effort,
+                           use_filesystem_cache)
     except Exception as e:
-        raise RdgParserError(f"Error during LLM call: {e}")
+        raise RdgParserError(f"Error during LLM call: {e}{_reserved_name_hint(e)}")
 
 def create_markdown_from_directory(rdg_file: str, **kwargs) -> str:
     """
@@ -406,8 +451,16 @@ def create_markdown_from_files(rdg_file: str, **kwargs) -> str:
             output_content += "\n```\n\n"
     return output_content
 
-def summarize_file(rdg_file: str, file: str, summary_type: str = "short") -> str:
-    """Generates a summary of a file using the LLM."""
+def summarize_file(rdg_file: str, file: str, summary_type: str = "short",
+                   model=None, effort=None) -> str:
+    """Generates a summary of a file using the LLM.
+
+    file=          path to the text to summarize
+    summary_type=  short (default) | long
+    model=         model id for this step (default: $RDG_GEMINI_MODEL, else the engine default)
+    effort=        reasoning effort: low | medium | high | xhigh | max (default: $RDG_GEMINI_EFFORT,
+                   else the provider's own default)
+    """
     try:
         file = process_input(file, os.path.dirname(rdg_file))
         if os.path.exists(file):
@@ -415,18 +468,22 @@ def summarize_file(rdg_file: str, file: str, summary_type: str = "short") -> str
                 content = f.read()
         else:
             content = file
-        
+
         if summary_type == "short":
             prompt = f"Summarize the following text in a few sentences:\n\n{content}"
         elif summary_type == "long":
             prompt = f"Summarize the following text in detail:\n\n{content}"
         else:
             raise RdgParserError(f"Invalid summary type: {summary_type}")
-        
-        summary = gemini_prompt(rdg_file, template=prompt)
-        return summary
+
+        # Calls the shared model path DIRECTLY rather than routing through GEMINIPROMPT, so the
+        # primitive event names SUMMARIZE — observability that reports the wrong formula is worse
+        # than none. The prompt above is already complete, and it is no longer handed to the
+        # template renderer on the way out, which also stops a summarized file containing
+        # `$name` or `{{name}}` from failing as an unresolved placeholder.
+        return _model_call("SUMMARIZE", prompt, model, effort)
     except Exception as e:
-        raise RdgParserError(f"Error during summarization: {e}")
+        raise RdgParserError(f"Error during summarization: {e}{_reserved_name_hint(e)}")
 
 # Note: extract_output_files_and_commands is not defined in the provided context.
 # Assuming it's defined elsewhere or is a placeholder for context purposes.
@@ -701,6 +758,34 @@ FUNCTION_REGISTRY: Dict[str, Callable] = {
 
 
 # ---------------------------------------------------------------------------
+# MODEL_FORMULAS — where the standard parameters apply
+# ---------------------------------------------------------------------------
+#
+# Founder 2026-08-16: "for all of our rdg formulas though, setting a model and effort should be
+# standard if an LLM is involved… we can just make them different parameters, that way model
+# switching is simple."
+#
+# The formulas that actually INVOKE a model. `model=` and `effort=` are standard parameters on
+# exactly these: the parser pops both before the remaining arguments become template data
+# (parser._pop_standard_params), so the two names can never silently turn into a `{{model}}`
+# placeholder, and refuses them on a formula that ships here and is not in this set.
+#
+# It lives beside the registry, not derived from it, because "calls a model" is not visible in a
+# callable — and a marker one line below the thing it marks is the version least able to drift.
+#
+# CREATEGEMINIPROMPT is deliberately ABSENT: it renders the prompt and returns it, calling
+# nothing. Accepting the parameters there would let a step name a model that was never asked for
+# anything, and a primitive event would report an invocation that never happened.
+MODEL_FORMULAS: set[str] = {"GEMINIPROMPT", "GEMINIPROMPTFILE", "SUMMARIZE"}
+
+# The formulas this engine SHIPS, snapshotted before RDG_FORMULA_PATH merges any external module.
+# The parser refuses the standard parameters on a built-in that is not model-class, because for
+# those the engine knows the whole vocabulary. It cannot know an external module's, so an
+# undeclared external formula is passed through untouched instead of refused on a guess.
+BUILTIN_FORMULAS = frozenset(FUNCTION_REGISTRY)
+
+
+# ---------------------------------------------------------------------------
 # RDG_FORMULA_PATH — load formulas from outside this package
 # ---------------------------------------------------------------------------
 #
@@ -713,9 +798,16 @@ FUNCTION_REGISTRY: Dict[str, Callable] = {
 # A formula module exports:
 #
 #     FORMULAS: Dict[str, Callable]      # name -> f(rdg_file: str, **kwargs) -> str
+#     MODEL_FORMULAS: set[str]           # OPTIONAL: which of the above invoke a model
 #
 # matching what parser.py already calls — formula(rdg_file, **arguments) — whose return value is
 # written to the step's destination.
+#
+# Declaring MODEL_FORMULAS opts those formulas into the standard-parameter contract: the parser
+# then pops `model=`/`effort=` before the rest becomes template data and refuses an effort level
+# outside the ladder. It is OPTIONAL because the engine must not assume another module's
+# parameter vocabulary — an undeclared external formula keeps receiving whatever the .rdg wrote,
+# exactly as before, so nothing downstream breaks by not having declared yet.
 #
 # Loading is FAIL-LOUD. A path that does not exist, a module that will not import, or a module
 # without a FORMULAS dict raises here rather than being skipped. A skipped module would leave its
@@ -753,6 +845,19 @@ def _load_external_formulas():
                 )
             for name, fn in formulas.items():
                 FUNCTION_REGISTRY[name] = fn
+            declared = getattr(module, "MODEL_FORMULAS", None)
+            if declared is not None:
+                if not isinstance(declared, (set, frozenset, list, tuple)):
+                    raise RuntimeError(
+                        f"{path} defines MODEL_FORMULAS that is not a set/list of formula names"
+                    )
+                unknown = sorted(n for n in declared if n not in formulas)
+                if unknown:
+                    raise RuntimeError(
+                        f"{path} declares MODEL_FORMULAS {unknown}, which its own FORMULAS does "
+                        "not define — a module may only declare its own formulas model-class"
+                    )
+                MODEL_FORMULAS.update(declared)
 
 
 _load_external_formulas()

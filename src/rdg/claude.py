@@ -18,6 +18,10 @@ Configuration:
 - CLAUDE_CLI_EFFORT (optional) — reasoning effort (low/medium/high/xhigh/max).
   Unset omits the flag entirely and inherits the CLI default. Validated at
   import in config.py; an invalid value raises rather than degrading silently.
+
+The last two are RUN-level defaults. A single `.rdg` step overrides both with the
+standard `model=` / `effort=` parameters, which arrive here as arguments — this is
+a model backend, so it takes the same two parameters the model formulas do.
 """
 
 import logging
@@ -29,7 +33,9 @@ from .config import (
     CLAUDE_CLI_MODEL,
     CLAUDE_CLI_TIMEOUT_SECONDS,
     CLAUDE_CLI_EFFORT,
+    resolve_claude_params,
 )
+from .events import emit_primitive
 
 _resolved_path = None
 _availability_logged = False
@@ -75,24 +81,31 @@ def is_available():
     return _resolve_cli() is not None
 
 
-def build_argv(cli):
+def build_argv(cli, model=None, effort=None):
     """Build the print-mode argv: ``--print --model <model>``, plus
     ``--effort <level>`` ONLY when an effort level is configured.
 
-    Omitting the flag when unset is deliberate — it inherits the CLI's own
-    default rather than this engine picking one. Flag order (model, then
-    effort) matches spawn-claude.ts so the two dispatch sites stay comparable.
+    `model` / `effort` are the step's standard parameters. ``None`` means the
+    step did not name one, so this run's configured default applies
+    (CLAUDE_CLI_MODEL / CLAUDE_CLI_EFFORT) — resolution lives in config.py so
+    both backends resolve by the same rule.
+
+    Omitting the flag when effort is unset everywhere is deliberate — it
+    inherits the CLI's own default rather than this engine picking one. Flag
+    order (model, then effort) matches spawn-claude.ts so the two dispatch sites
+    stay comparable.
 
     Pure and separately testable: the argv contract is the part worth asserting,
     and it can be checked without spawning a process or making an LLM call.
     """
-    argv = [cli, "--print", "--model", CLAUDE_CLI_MODEL]
-    if CLAUDE_CLI_EFFORT is not None:
-        argv += ["--effort", CLAUDE_CLI_EFFORT]
+    model, effort = resolve_claude_params(model, effort)
+    argv = [cli, "--print", "--model", model]
+    if effort is not None:
+        argv += ["--effort", effort]
     return argv
 
 
-def call_claude(rendered_template):
+def call_claude(rendered_template, model=None, effort=None):
     """
     Invoke the claude CLI in non-interactive print mode. Returns the response
     text on success. On FAILURE (raise, timeout, or non-zero CLI exit) returns
@@ -100,6 +113,11 @@ def call_claude(rendered_template):
     so the caller writes a non-empty error report carrying the actual cause,
     rather than a 0-byte file that hides the failure. Mirrors the contract of
     memoized_gemini_call.
+
+    `model` / `effort` are the calling step's standard parameters (None = this
+    run's configured default). The .rdg formula the call is made for labels the
+    primitive event and arrives on a ContextVar (events.formula_context), so it
+    does not become a fourth key on the memoised call above it.
 
     Uses --print (one-shot, no REPL) and pipes the prompt via stdin to avoid
     argv length limits on long audit prompts.
@@ -111,9 +129,17 @@ def call_claude(rendered_template):
         # from the Gemini fallback path call_claude is only invoked when
         # is_available() is True. Left as "" — not the exception surface.
         return ""
+    resolved_model, resolved_effort = resolve_claude_params(model, effort)
+    argv = build_argv(cli, resolved_model, resolved_effort)
+    emit_primitive(
+        model=resolved_model,
+        effort=resolved_effort,
+        backend="claude",
+        timeout_s=CLAUDE_CLI_TIMEOUT_SECONDS,
+    )
     try:
         result = subprocess.run(
-            build_argv(cli),
+            argv,
             input=rendered_template,
             capture_output=True,
             text=True,
@@ -121,14 +147,18 @@ def call_claude(rendered_template):
             check=False,
         )
         if result.returncode != 0:
+            # BOTH streams. The CLI writes its error payload to STDOUT under
+            # `--output-format json`, so a stderr-only tail reported every real
+            # failure as "exit 1:" with nothing after the colon — reproduced
+            # twice downstream on rtb-runner/graph/migration-report.rdg. The
+            # cause was on stdout the whole time, and the report dropped it.
             stderr_tail = (result.stderr or "").strip()[-500:]
-            logging.error(
-                f"Claude CLI exited {result.returncode}: {stderr_tail}"
-            )
-            return format_engine_error(
-                "ClaudeCliNonZeroExit",
-                f"exit {result.returncode}: {stderr_tail}",
-            )
+            stdout_tail = (result.stdout or "").strip()[-500:]
+            detail = f"exit {result.returncode}: {stderr_tail}"
+            if stdout_tail:
+                detail += f" | stdout: {stdout_tail}"
+            logging.error(f"Claude CLI exited {result.returncode}: {detail}")
+            return format_engine_error("ClaudeCliNonZeroExit", detail)
         return result.stdout
     except subprocess.TimeoutExpired:
         logging.error(f"Claude CLI timed out after {CLAUDE_CLI_TIMEOUT_SECONDS}s")
