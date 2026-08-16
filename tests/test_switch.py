@@ -2,7 +2,7 @@
 """
 RDG LLM-Switch Regression Test Suite (S11).
 
-Spec: apps/rtb-manual/docs/plans/2026-05-17_codification-doctrine-substrate-health.md §S11
+Spec: a consumer repo §S11
 Anchor: rdg-notebook/reactive-docgen/tests/golden/llm-switch-fixtures/cases/*.json (S10)
 
 Two modes:
